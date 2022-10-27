@@ -37,4 +37,5 @@ android {
 	packagingOptions {
 		doNotStrip.add("**.so")
 	}
+    namespace 'app.upstairs.quest_sample_project'
 }

@@ -10,6 +10,9 @@ file(GLOB_RECURSE SOURCE_FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.h)
 
+add_subdirectory(glm)
+target_link_libraries(quest-demo glm)
+
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/vendor")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/vendor/ovr_sdk_mobile/VrApi/Include")
 
