@@ -10,9 +10,6 @@ file(GLOB_RECURSE SOURCE_FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.h)
 
-add_subdirectory(glm)
-target_link_libraries(quest-demo glm)
-
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/vendor")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/vendor/ovr_sdk_mobile/VrApi/Include")
 
@@ -22,6 +19,9 @@ target_include_directories(quest-demo PRIVATE ${ANDROID_NDK}/sources/android/nat
 
 add_library(ovr-loader SHARED IMPORTED)
 set_target_properties(ovr-loader PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/vendor/ovr_sdk_mobile/VrApi/Libs/Android/arm64-v8a/Release/libvrapi.so)
+
+add_subdirectory(glm)
+target_link_libraries(quest-demo glm)
 
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
 

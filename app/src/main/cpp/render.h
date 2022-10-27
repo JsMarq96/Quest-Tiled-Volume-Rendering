@@ -4,7 +4,7 @@
 #include <GLES3/gl3.h>
 #include <cstdint>
 #ifndef __EMSCRIPTEN__
-#include <GL/gl3w.h>
+#include <GLES3/gl3.h>
 #endif
 
 #include "transform.h"
@@ -227,7 +227,7 @@ namespace Render {
         }
 
         inline uint32_t get_texture_of_fbo(const uint8_t fbo_id) const {
-            return fbos[fbo_id].color_attachment0.texture_id;
+            return material_man.textures[fbos[fbo_id].color_attachment0].texture_id;
         }
 
         inline sDrawCall* get_draw_call(const uint8_t pass_id,

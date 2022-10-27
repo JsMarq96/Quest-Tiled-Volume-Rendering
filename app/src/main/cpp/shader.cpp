@@ -1,8 +1,8 @@
 #include "shader.h"
 
 #ifndef __EMSCRIPTEN__
-#include "gl3w.h"
-#include <GL/gl3w.h>
+
+#include <GLES3/gl3.h>
 #else
 #include <webgl/webgl2.h>
 #endif

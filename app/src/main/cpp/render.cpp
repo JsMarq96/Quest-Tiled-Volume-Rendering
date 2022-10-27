@@ -155,7 +155,8 @@ void Render::sInstance::render_frame(const glm::mat4x4 &view_proj_mat,
 
             if (curr_fbo.width != width ||
                 curr_fbo.height != heigth) {
-                curr_fbo.reinit(width, heigth);
+                assert(false && "REINITIT FBO TODO");
+                //curr_fbo.reinit(width, heigth);
             }
 
             curr_fbo.bind();

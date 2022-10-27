@@ -1,6 +1,6 @@
 #include "texture.h"
 #ifndef __EMSCRIPTEN__
-#include <GL/gl3w.h>
+#include <GLES3/gl3.h>
 #else
 #include <emscripten.h>
 #include <webgl/webgl2.h>

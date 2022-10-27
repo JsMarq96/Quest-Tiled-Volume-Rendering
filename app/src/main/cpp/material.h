@@ -6,7 +6,6 @@
 #include "texture.h"
 #include "shader.h"
 #include "fbo.h"
-#include "volumetric_octree.h"
 
 #define MAX_TEXTURE_COUNT 15
 #define MAX_SHADER_COUNT 15

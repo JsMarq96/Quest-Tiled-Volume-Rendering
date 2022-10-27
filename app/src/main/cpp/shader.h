@@ -2,7 +2,7 @@
 #define SHADER_H_
 
 #ifndef __EMSCRIPTEN__
-#include "GL/gl3w.h"
+#include <GLES3/gl3.h>
 #else
 #include <webgl/webgl2.h>
 #endif

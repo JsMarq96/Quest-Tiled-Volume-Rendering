@@ -5,7 +5,7 @@
 #include <webgl/webgl2.h>
 #include <GLES3/gl3.h>
 #else
-#include <GL/gl3w.h>
+#include <GLES3/gl3.h>
 #endif
 
 #include "texture.h"
