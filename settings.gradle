@@ -1,2 +1,9 @@
-include ':app'
-rootProject.name = "Quest Demo"
+
+rootProject.projectDir = new File(settingsDir, '.')
+rootProject.name = "OculusRoot"
+
+include ':', \
+    'XrSamples:XrMobileVolumetric:Projects:Android'
+
+
+// Top level settings
