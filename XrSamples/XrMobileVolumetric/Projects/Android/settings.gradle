@@ -1,0 +1,5 @@
+rootProject.projectDir = new File(settingsDir, '../../../..')
+rootProject.name = "XrMobileVolumetric"
+
+include ':', \
+	'XrSamples:XrMobileVolumetric:Projects:Android'
