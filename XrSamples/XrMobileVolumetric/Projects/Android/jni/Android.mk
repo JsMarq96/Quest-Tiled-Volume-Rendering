@@ -5,10 +5,15 @@ LOCAL_MODULE := xrmobilevolumetric
 
 include ../../../../cflags.mk
 
+APP_STL := gnustl_static
+
 LOCAL_C_INCLUDES := \
   					$(LOCAL_PATH)/../../../../../3rdParty/khronos/openxr/OpenXR-SDK/include \
 
-LOCAL_SRC_FILES	:= 	../../../src/main.cpp
+LOCAL_CFLAGS += -I$(LOCAL_PATH)/../../../../../glm/
+
+FILE_LIST := $(wildcard $(LOCAL_PATH)/../../../src/*.cpp)
+LOCAL_SRC_FILES := $(FILE_LIST:$(LOCAL_PATH)/%=%)
 
 # include default libraries
 LOCAL_LDLIBS 			:= -llog -landroid -lGLESv3 -lEGL

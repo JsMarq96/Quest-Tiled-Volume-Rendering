@@ -14,6 +14,8 @@
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/ext/matrix_projection.hpp"
+#include "../../../glm/glm/vec3.hpp"
+#include "../../../glm/glm/mat4x4.hpp"
 
 void Render::sMeshBuffers::init_with_triangles(const float *geometry,
                                                const uint32_t geometry_size,
@@ -143,8 +145,8 @@ void Render::sInstance::change_graphic_state(const sGLState &new_state) {
 
 void Render::sInstance::render_frame(const glm::mat4x4 &view_proj_mat,
                                      const glm::vec3 &cam_pos,
-                                     const int32_t width,
-                                     const int32_t heigth,
+                                     const uint32_t width,
+                                     const uint32_t heigth,
                                      const bool clean_frame = true) {
     for(uint16_t j = 0; j < render_pass_size; j++) {
         // Bind the render pass
@@ -314,4 +316,5 @@ uint8_t Render::sInstance::FBO_reinit(const uint8_t fbo_id,
             break;
     }
 
+    return 0;
 }

@@ -156,7 +156,7 @@ void sShader::activate() const {
 }
 
 void sShader::deactivate() const {
-    int i = 0;
+    glUseProgram(0);
 }
 
 void sShader::set_uniform(const char* name,

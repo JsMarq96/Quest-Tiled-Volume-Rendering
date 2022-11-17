@@ -1,12 +1,7 @@
 #ifndef FBO_H_
 #define FBO_H_
 #include <cstdint>
-#ifdef __EMSCRIPTEN__
-#include <webgl/webgl2.h>
 #include <GLES3/gl3.h>
-#else
-#include <GLES3/gl3.h>
-#endif
 
 #include "texture.h"
 

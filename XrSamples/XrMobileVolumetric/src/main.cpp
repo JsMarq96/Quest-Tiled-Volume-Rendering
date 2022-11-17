@@ -31,7 +31,7 @@ Copyright : Copyright (c) Facebook Technologies, LLC and its affiliates. All rig
 #include <GLES3/gl3ext.h>
 
 #include "openxr_instance.h"
-
+#include "render.h"
 
 struct sAndroidState {
     ANativeWindow *native_window = NULL;
@@ -105,7 +105,7 @@ sOpenXR_Instance openxr_instance = {};
  */
  // https://www.khronos.org/files/openxr-10-reference-guide.pdf
  // https://github.com/QCraft-CC/OpenXR-Quest-sample/tree/main/app/src/main/cpp/hello_xr
- // https://github.com/JsMarq96/Understanding-Tiled-Volume-Rendering/blob/main/XrSamples/XrMobileVolumetric/src/main.cpp
+ // https://github.com/JsMarq96/Understanding-Tiled-Volume-Rendering/blob/ee294f2407da501274c6abd301fbfd8eec5575fc/XrSamples/XrMobileVolumetric/src/main.cpp
 void android_main(struct android_app* app) {
     JNIEnv* Env;
     (*app->activity->vm).AttachCurrentThread( &Env, NULL);
@@ -121,7 +121,8 @@ void android_main(struct android_app* app) {
     app_state.application_vm = app->activity->vm;
     app_state.application_activity = app->activity->clazz; // ??
 
-    openxr_instance.init();
+    sFramebuffer framebuffer;
+    openxr_instance.init(&framebuffer);
 
     //ovrApp_Clear(&appState);
 
@@ -224,7 +225,6 @@ void android_main(struct android_app* app) {
 
     app->userData = &app_state;
     app->onAppCmd = app_handle_cmd;
-
 
     // Game Loop
     while (app->destroyRequested == 0) {

@@ -69,16 +69,16 @@ struct sMaterialManager {
 
     sTexture        textures[MAX_TEXTURE_COUNT];
     uint8_t         texture_count = 0;
-    sShader         shaders[MAX_TEXTURE_COUNT];
+    sShader         shaders[MAX_SHADER_COUNT];
     uint8_t         shader_count = 0;
 
     sMaterialInstance  materials[MAX_MATERIAL_COUNT];
     uint8_t            materials_count = 0;
 
     uint8_t add_shader(const char     *vertex_shader,
-                    const char     *fragment_shader);
+                       const char     *fragment_shader);
     uint8_t add_raw_shader(const char     *vertex_shader,
-                    const char     *fragment_shader);
+                           const char     *fragment_shader);
 
     void add_volume_texture(const char* text_dir,
                             const uint16_t tile_width,

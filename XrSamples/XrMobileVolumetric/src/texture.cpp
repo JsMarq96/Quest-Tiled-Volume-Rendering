@@ -33,15 +33,17 @@ void sTexture::load(const eTextureType text_type,
         // Generate buffer based on teh biggest possible size, the bottom terminating png
         char *name_buffer = (char*) malloc(strlen(texture_name) + sizeof("bottom.png") + 1);
 
-        char* raw_data = NULL;
+        char* l_raw_data = NULL;
         for(int i = 0; i < 6; i++) {
-            int w, h, l;
+            int w, h;
             memset(name_buffer, '\0', strlen(texture_name) + sizeof("bottom.png") + 1);
             strcat(name_buffer, texture_name);
             strcat(name_buffer, cubemap_terminations[i]);
 
 #ifndef __EMSCRIPTEN__
-            //raw_data = stbi_load(name_buffer, &w, &h, &l, 0);
+            //l_raw_data  = stbi_load(name_buffer, &w, &h, &l, 0);
+            w = 0;
+            h = 0;
 #else
             raw_data = emscripten_get_preloaded_image_data(name_buffer, &w, &h);
             l = 4;
@@ -56,7 +58,7 @@ void sTexture::load(const eTextureType text_type,
                          0,
                          GL_RGB,
                          GL_UNSIGNED_BYTE,
-                         raw_data);
+                         l_raw_data );
             //stbi_image_free(raw_data);
         }
 
@@ -71,11 +73,13 @@ void sTexture::load(const eTextureType text_type,
 
         return;
     }
-    int w, h, l;
+    int w, h;
     //text->raw_data = stbi_load(texture_name, &w, &h, &l, 0);
 
 #ifndef __EMSCRIPTEN__
     //raw_data = stbi_load(name_buffer, &w, &h, &l, 0);
+    w = 0;
+    h = 0;
 #else
     raw_data = emscripten_get_preloaded_image_data(texture_name, &w, &h);
     l = 4;
@@ -135,7 +139,7 @@ void sTexture::load3D(const char* texture_name,
                       const uint16_t depth_i) {
     store_on_RAM = false;
     type = VOLUME;
-    int w = 0, h = 0, l = 0;
+    int w = 0, h = 0;
     //text->raw_data = stbi_load(texture_name, &w, &h, &l, 0);
 
 #ifndef __EMSCRIPTEN__

@@ -7,6 +7,7 @@
 #include <GLES3/gl3.h>
 #endif
 
+
 #include "transform.h"
 #include "shader.h"
 #include "material.h"
@@ -145,8 +146,8 @@ namespace Render {
         void change_graphic_state(const sGLState &new_state);
         void render_frame(const glm::mat4x4 &view_proj_mat,
                           const glm::vec3 &cam_pos,
-                          const int32_t width,
-                          const int32_t heigth,
+                          const uint32_t width,
+                          const uint32_t heigth,
                           const bool clean_frame);
 
         // Inlines
