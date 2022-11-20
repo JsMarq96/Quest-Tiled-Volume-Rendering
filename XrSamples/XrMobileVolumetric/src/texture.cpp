@@ -12,6 +12,21 @@
 
 void upload_simple_texture_to_GPU(sTexture *text);
 
+void sTexture::config(const uint32_t texture_type,
+                      const bool generate_mipmaps) {
+    glBindTexture(texture_type, texture_id);
+
+    glTexParameteri(texture_type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(texture_type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(texture_type, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(texture_type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    if (generate_mipmaps) {
+        glGenerateMipmap(texture_type);
+    }
+
+    glBindTexture(texture_type, 0);
+}
 
 void sTexture::load(const eTextureType text_type,
                     const bool istore_on_RAM,

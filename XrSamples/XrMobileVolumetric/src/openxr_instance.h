@@ -15,8 +15,11 @@
 
 #include "egl_context.h"
 #include "app_data.h"
+#include <cstring>
+#include <cassert>
+#include <GLES3/gl3.h>
 
-struct sFramebuffer {
+struct sOpenXRFramebuffer {
     uint32_t width = 0;
     uint32_t height = 0;
     // multisamples
@@ -95,7 +98,7 @@ struct sOpenXR_Instance {
     XrView eye_projections[MAX_EYE_NUMBER];
 
 
-    void init(sFramebuffer *framebuffer) {
+    void init(sOpenXRFramebuffer *framebuffer) {
         // Load extensions ==============================================================
         uint32_t extension_count = 9;
         const char *enabled_extensions[12] = {

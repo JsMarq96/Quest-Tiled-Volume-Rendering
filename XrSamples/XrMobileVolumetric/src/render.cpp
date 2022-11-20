@@ -61,8 +61,52 @@ void Render::sMeshBuffers::init_with_triangles(const float *geometry,
 }
 
 
-void Render::sInstance::init() {
-    // Set default
+void Render::sInstance::init(const sOpenXRFramebuffer &openxr_framebuffer) {
+    // Create FBOs from the openxr_framebuffer's swapchain
+    for(uint32_t i = 0; i < openxr_framebuffer.swapchain_length; i++){
+        // Color texture
+        const uint32_t color_text = openxr_framebuffer.swapchain_images[i].image;
+
+        const uint8_t color_text_id = material_man.get_new_texture();
+
+        sTexture *curr_color_tex = &material_man.textures[color_text_id];
+        curr_color_tex->texture_id = color_text;
+
+        curr_color_tex->config(GL_TEXTURE_2D,
+                               false);
+
+        // Depth rbo
+        const uint8_t depth_rbo = rbo_count++;
+        RBO_init(depth_rbo,
+                 openxr_framebuffer.width,
+                 openxr_framebuffer.height,
+                 GL_DEPTH_COMPONENT24);
+
+        // Create FBO
+        const uint8_t eye_fbo = fbo_count++;
+        FBO_init(eye_fbo);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER,
+                          fbos[eye_fbo].id);
+        glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER,
+                                  GL_DEPTH_ATTACHMENT,
+                                  GL_RENDERBUFFER,
+                                  rbos[depth_rbo].id);
+        glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,
+                               GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_2D,
+                               color_text,
+                               0);
+
+        assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER == GL_FRAMEBUFFER_COMPLETE) && "Failed FBO creation");
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER,
+                          0);
+
+        framebuffer.color_textures[i] = color_text_id;
+        framebuffer.depth_rbos[i] = depth_rbo;
+        framebuffer.fbos[i] = eye_fbo;
+    }
+
+    // Set default render config
     current_state.depth_test_enabled = true;
     glEnable(GL_DEPTH_TEST);
     glDepthMask(current_state.write_to_depth_buffer);
@@ -218,6 +262,11 @@ void Render::sInstance::render_frame(const glm::mat4x4 &view_proj_mat,
 
 
 // FBO methods ===================
+void Render::sInstance::FBO_init(const uint8_t fbo_id) {
+    glGenFramebuffers(1,
+                      &fbos[fbo_id].id);
+}
+
 void Render::sInstance::FBO_init_with_single_color(const uint8_t fbo_id,
                                                    const uint32_t width_i,
                                                    const uint32_t height_i) {
@@ -317,4 +366,24 @@ uint8_t Render::sInstance::FBO_reinit(const uint8_t fbo_id,
     }
 
     return 0;
+}
+
+
+void Render::sInstance::RBO_init(const uint8_t rbo_id,
+                                 const uint32_t width_i,
+                                 const uint32_t height_i,
+                                 const uint32_t buffer_format) {
+    glGenRenderbuffers(1,
+                       &rbos[rbo_id].id);
+    glBindRenderbuffer(GL_RENDERBUFFER,
+                       rbos[rbo_id].id);
+    glRenderbufferStorage(GL_RENDERBUFFER,
+                          buffer_format,
+                          width_i,
+                          height_i);
+    glBindRenderbuffer(GL_RENDERBUFFER,
+                       0);
+
+    rbos[rbo_id].width = width_i;
+    rbos[rbo_id].height = height_i;
 }

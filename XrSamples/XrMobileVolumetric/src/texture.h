@@ -39,6 +39,10 @@ struct sTexture {
                 const uint16_t heigth,
                 const uint16_t depth);
 
+    // Loads the texture configuration to opengl
+    void config(const uint32_t texture_type,
+                const bool generate_mipmaps);
+
     void load_sphere_volume(const uint16_t size);
 
     void load_empty_volume();

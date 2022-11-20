@@ -9,6 +9,8 @@ Copyright : Copyright (c) Facebook Technologies, LLC and its affiliates. All rig
 
 *************************************************************************************/
 
+#include "openxr_instance.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -30,7 +32,6 @@ Copyright : Copyright (c) Facebook Technologies, LLC and its affiliates. All rig
 #include <GLES3/gl3.h>
 #include <GLES3/gl3ext.h>
 
-#include "openxr_instance.h"
 #include "render.h"
 
 struct sAndroidState {
@@ -98,6 +99,8 @@ static void app_handle_cmd(struct android_app* app, int32_t cmd) {
 
 sOpenXR_Instance openxr_instance = {};
 
+Render::sInstance renderer = {};
+
 /**
  * This is the main entry point of a native application that is using
  * android_native_app_glue.  It runs in its own thread, with its own
@@ -121,107 +124,10 @@ void android_main(struct android_app* app) {
     app_state.application_vm = app->activity->vm;
     app_state.application_activity = app->activity->clazz; // ??
 
-    sFramebuffer framebuffer;
+    sOpenXRFramebuffer framebuffer;
     openxr_instance.init(&framebuffer);
 
-    //ovrApp_Clear(&appState);
-
-    // Init app state
-
-    // Load OpenXR
-
-
-    // Get the viewport configuration info for the chosen viewport configuration type.
-    /*appState.ViewportConfig.type = XR_TYPE_VIEW_CONFIGURATION_PROPERTIES;
-
-    OXR(xrGetViewConfigurationProperties(
-            appState.Instance, appState.SystemId, supportedViewConfigType, &appState.ViewportConfig));*/
-
-    // Enumerate the supported color space options for the system.
-    /*{
-        PFN_xrEnumerateColorSpacesFB pfnxrEnumerateColorSpacesFB = NULL;
-        OXR(xrGetInstanceProcAddr(
-                appState.Instance,
-                "xrEnumerateColorSpacesFB",
-                (PFN_xrVoidFunction*)(&pfnxrEnumerateColorSpacesFB)));
-
-        uint32_t colorSpaceCountOutput = 0;
-        OXR(pfnxrEnumerateColorSpacesFB(appState.Session, 0, &colorSpaceCountOutput, NULL));
-
-        XrColorSpaceFB* colorSpaces =
-                (XrColorSpaceFB*)malloc(colorSpaceCountOutput * sizeof(XrColorSpaceFB));
-
-        OXR(pfnxrEnumerateColorSpacesFB(
-                appState.Session, colorSpaceCountOutput, &colorSpaceCountOutput, colorSpaces));
-        ALOGV("Supported ColorSpaces:");
-
-        for (uint32_t i = 0; i < colorSpaceCountOutput; i++) {
-            ALOGV("%d:%d", i, colorSpaces[i]);
-        }
-
-        const XrColorSpaceFB requestColorSpace = XR_COLOR_SPACE_REC2020_FB;
-
-        PFN_xrSetColorSpaceFB pfnxrSetColorSpaceFB = NULL;
-        OXR(xrGetInstanceProcAddr(
-                appState.Instance, "xrSetColorSpaceFB", (PFN_xrVoidFunction*)(&pfnxrSetColorSpaceFB)));
-
-        OXR(pfnxrSetColorSpaceFB(appState.Session, requestColorSpace));
-
-        free(colorSpaces);
-    }*/
-
-    // Get the supported display refresh rates for the system.
-    /*{
-        PFN_xrEnumerateDisplayRefreshRatesFB pfnxrEnumerateDisplayRefreshRatesFB = NULL;
-        OXR(xrGetInstanceProcAddr(
-                appState.Instance,
-                "xrEnumerateDisplayRefreshRatesFB",
-                (PFN_xrVoidFunction*)(&pfnxrEnumerateDisplayRefreshRatesFB)));
-
-        OXR(pfnxrEnumerateDisplayRefreshRatesFB(
-                appState.Session, 0, &appState.NumSupportedDisplayRefreshRates, NULL));
-
-        appState.SupportedDisplayRefreshRates =
-                (float*)malloc(appState.NumSupportedDisplayRefreshRates * sizeof(float));
-        OXR(pfnxrEnumerateDisplayRefreshRatesFB(
-                appState.Session,
-                appState.NumSupportedDisplayRefreshRates,
-                &appState.NumSupportedDisplayRefreshRates,
-                appState.SupportedDisplayRefreshRates));
-        ALOGV("Supported Refresh Rates:");
-        for (uint32_t i = 0; i < appState.NumSupportedDisplayRefreshRates; i++) {
-            ALOGV("%d:%f", i, appState.SupportedDisplayRefreshRates[i]);
-        }
-
-        OXR(xrGetInstanceProcAddr(
-                appState.Instance,
-                "xrGetDisplayRefreshRateFB",
-                (PFN_xrVoidFunction*)(&appState.pfnGetDisplayRefreshRate)));
-
-        float currentDisplayRefreshRate = 0.0f;
-        OXR(appState.pfnGetDisplayRefreshRate(appState.Session, &currentDisplayRefreshRate));
-        ALOGV("Current System Display Refresh Rate: %f", currentDisplayRefreshRate);
-
-        OXR(xrGetInstanceProcAddr(
-                appState.Instance,
-                "xrRequestDisplayRefreshRateFB",
-                (PFN_xrVoidFunction*)(&appState.pfnRequestDisplayRefreshRate)));
-
-        // Test requesting the system default.
-        OXR(appState.pfnRequestDisplayRefreshRate(appState.Session, 0.0f));
-        ALOGV("Requesting system default display refresh rate");
-    }*/
-
-    // Action creation
-    {
-        // Map bindings fro controllers
-    }
-
-    // Aim vs grip space on controllers??
-
-    // Create renderer
-
-    // COnfig foviation
+    // Init renderer with the framebuffer data from OpenXR
 
     app->userData = &app_state;
     app->onAppCmd = app_handle_cmd;

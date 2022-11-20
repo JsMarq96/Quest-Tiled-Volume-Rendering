@@ -12,6 +12,8 @@
 **
 */
 
+#include <EGL/egl.h>
+#include <jni.h>
 #include "openxr.h"
 
 #ifdef __cplusplus

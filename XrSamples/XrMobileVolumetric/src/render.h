@@ -7,17 +7,19 @@
 #include <GLES3/gl3.h>
 #endif
 
-
+#include "openxr_instance.h"
 #include "transform.h"
 #include "shader.h"
 #include "material.h"
 #include "fbo.h"
+#include "rbo.h"
 #include "raw_shaders.h"
 
 #define SHADER_TOTAL_COUNT 10
 #define MESH_TOTAL_COUNT 20
 #define MATERIAL_TOTAL_COUNT 30
 #define FBO_TOTAL_COUNT 5
+#define RBO_TOTAL_COUNT 5
 #define DRAW_CALL_STACK_SIZE 30
 #define RENDER_PASS_COUNT 4
 /**
@@ -76,6 +78,12 @@ namespace Render {
         }
     };
 
+    struct sFramebuffer {
+        uint8_t fbos[MAX_EYE_NUMBER] = {};
+        uint8_t color_textures[MAX_EYE_NUMBER] = {};
+        uint8_t depth_rbos[MAX_EYE_NUMBER] = {};
+    };
+
 
     // TODO: Parenting
     struct sDrawCall {
@@ -126,6 +134,8 @@ namespace Render {
     };
     
     struct sInstance {
+        sFramebuffer framebuffer = {};
+
         sGLState current_state;
 
         uint32_t base_framebuffer = 0;
@@ -134,6 +144,8 @@ namespace Render {
 
         uint8_t fbo_count = 0;
         sFBO fbos[FBO_TOTAL_COUNT];
+        uint8_t rbo_count = 0;
+        sRBO rbos[RBO_TOTAL_COUNT];
         uint8_t meshes_count = 0;
         sMeshBuffers meshes[MESH_TOTAL_COUNT];
 
@@ -142,7 +154,7 @@ namespace Render {
         uint16_t render_pass_size = 0;
         sRenderPass render_passes[RENDER_PASS_COUNT];
 
-        void init();
+        void init(const sOpenXRFramebuffer &openxr_framebuffer);
         void change_graphic_state(const sGLState &new_state);
         void render_frame(const glm::mat4x4 &view_proj_mat,
                           const glm::vec3 &cam_pos,
@@ -243,6 +255,8 @@ namespace Render {
         }
 
         // FBO Functions =====
+        void FBO_init(const uint8_t fbo_id);
+
         void FBO_init_with_single_color(const uint8_t fbo_id,
                                         const uint32_t width_i,
                                         const uint32_t height_i);
@@ -260,6 +274,19 @@ namespace Render {
         }
         inline void FBO_unbind() const {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        }
+
+        // RBO Functions
+        void RBO_init(const uint8_t rbo_id,
+                      const uint32_t width_i,
+                      const uint32_t height_i,
+                      const uint32_t buffer_format);
+
+        inline void RBO_bind(const uint8_t rbo_id) const {
+            rbos[rbo_id].bind(GL_DRAW_FRAMEBUFFER);
+        }
+        inline void FBO_unbind(const uint8_t rbo_id) const {
+            rbos[rbo_id].unbind();
         }
     };
 
