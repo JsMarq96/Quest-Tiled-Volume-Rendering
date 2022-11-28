@@ -19,6 +19,12 @@
 #include <cassert>
 #include <GLES3/gl3.h>
 
+struct sFrameTransforms {
+    XrMatrix4x4f view[MAX_EYE_NUMBER];
+    XrMatrix4x4f projection[MAX_EYE_NUMBER];
+    XrMatrix4x4f viewprojection[MAX_EYE_NUMBER];
+};
+
 struct sOpenXRFramebuffer {
     uint32_t width = 0;
     uint32_t height = 0;
@@ -92,11 +98,15 @@ struct sOpenXR_Instance {
     XrSystemId xr_sys_id;
     XrSession xr_session;
     XrSpace xr_stage_space, xr_local_space, xr_head_space;
+    XrFrameState frame_state = {};
     sEglContext egl;
 
     XrViewConfigurationView view_configs[MAX_EYE_NUMBER];
     XrViewConfigurationProperties view_config_prop;
     XrView eye_projections[MAX_EYE_NUMBER];
+
+    XrCompositionLayerProjectionView projection_views[MAX_EYE_NUMBER];
+    XrCompositionLayerProjection projection_layer;
 
 
     void init(sOpenXRFramebuffer *framebuffer) {
@@ -300,22 +310,52 @@ struct sOpenXR_Instance {
                           GL_SRGB8_ALPHA8);
 
         // TODO: Foveation
+
+        // Composition layers: View projection layer
+        projection_layer = {
+                .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION,
+                .next = NULL,
+                .layerFlags = 0, //XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT | XR_COMPOSITION_LAYER_CORRECT_CHROMATIC_ABERRATION_BIT
+                .space = xr_head_space, // or xr_stage_space
+                .viewCount = viewport_count,
+                .views = projection_views
+        };
+
+        for(uint16_t i = 0; i < MAX_EYE_NUMBER; i++) {
+            projection_views[i] = {
+                    .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
+                    .next = NULL,
+                    .subImage = {
+                            .swapchain = framebuffer->swapchain_handle,
+                            .imageRect = {
+                                    .offset = {0,0},
+                                    .extent = {
+                                            .width = (int32_t) view_configs[i].recommendedImageRectWidth,
+                                            .height = (int32_t) view_configs[i].recommendedImageRectHeight
+                                    }
+                            },
+                            .imageArrayIndex = 0
+                    }
+            };
+        }
     }
 
-    void update(double *delta_time) {
+
+    void update(double *delta_time,
+                sFrameTransforms *transforms) {
         // NOTE: OpenXR does not use the concept of frame indices. Instead,
         // XrWaitFrame returns the predicted display time.
         XrFrameWaitInfo waitFrameInfo = {};
         waitFrameInfo.type = XR_TYPE_FRAME_WAIT_INFO;
         waitFrameInfo.next = NULL;
 
-        XrFrameState frameState = {};
-        frameState.type = XR_TYPE_FRAME_STATE;
-        frameState.next = NULL;
+        frame_state = {};
+        frame_state.type = XR_TYPE_FRAME_STATE;
+        frame_state.next = NULL;
 
         xrWaitFrame(xr_session,
                     &waitFrameInfo,
-                    &frameState);
+                    &frame_state);
 
         // Get the HMD pose, predicted for the middle of the time period during which
         // the new eye images will be displayed. The number of frames predicted ahead
@@ -330,17 +370,18 @@ struct sOpenXR_Instance {
                      &begin_frame_desc);
 
         // Get space tracking ===
-        XrSpaceLocation location = {.type = XR_TYPE_SPACE_LOCATION};
+        XrSpaceLocation space_location = {.type = XR_TYPE_SPACE_LOCATION};
         xrLocateSpace(xr_stage_space,
                       xr_local_space,
-                      frameState.predictedDisplayTime,
-                      &location);
+                      frame_state.predictedDisplayTime,
+                      &space_location);
+        XrPosef pose_stage_from_head = space_location.pose;
 
         // Get Projection ===
         XrViewLocateInfo projection_info = {
                 .type = XR_TYPE_VIEW_LOCATE_INFO,
                 .viewConfigurationType = view_config_prop.viewConfigurationType,
-                .displayTime = frameState.predictedDisplayTime,
+                .displayTime = frame_state.predictedDisplayTime,
                 .space = xr_head_space
         };
 
@@ -357,22 +398,29 @@ struct sOpenXR_Instance {
                       &projection_capacity,
                       eye_projections);
 
-        *delta_time = FromXrTime(frameState.predictedDisplayTime);
+        *delta_time = FromXrTime(frame_state.predictedDisplayTime);
 
         // Generate view projections
         XrPosef viewTransform[2];
 
         for (int eye = 0; eye < MAX_EYE_NUMBER; eye++) {
             XrPosef xfHeadFromEye = eye_projections[eye].pose;
-            XrPosef xfStageFromEye = XrPosef_Multiply(xfStageFromHead, xfHeadFromEye);
+            XrPosef xfStageFromEye = XrPosef_Multiply(pose_stage_from_head,
+                                                      xfHeadFromEye);
             viewTransform[eye] = XrPosef_Inverse(xfStageFromEye);
 
-            sceneMatrices.ViewMatrix[eye] =
-                    XrMatrix4x4f_CreateFromRigidTransform(&viewTransform[eye]);
+            transforms->view[eye] = XrMatrix4x4f_CreateFromRigidTransform(&viewTransform[eye]);
 
-            const XrFovf fov = projections[eye].fov;
-            XrMatrix4x4f_CreateProjectionFov(
-                    &sceneMatrices.ProjectionMatrix[eye], GRAPHICS_OPENGL_ES, fov, 0.1f, 0.0f);
+            const XrFovf fov = eye_projections[eye].fov;
+            XrMatrix4x4f_CreateProjectionFov(&transforms->projection[eye],
+                                             GRAPHICS_OPENGL_ES,
+                                             fov,
+                                             0.1f,
+                                             0.0f);
+
+            XrMatrix4x4f_Multiply(&transforms->viewprojection[eye],
+                                  &transforms->view[eye],
+                                  &transforms->projection[eye]);
         }
     }
 };

@@ -136,6 +136,8 @@ void android_main(struct android_app* app) {
     app->userData = &app_state;
     app->onAppCmd = app_handle_cmd;
 
+    sFrameTransforms frame_transforms = {};
+
     // Game Loop
     while (app->destroyRequested == 0) {
         // Read all pending android events
@@ -160,38 +162,30 @@ void android_main(struct android_app* app) {
                 source->process(app, source);
             }
         }
+        double delta_time = 0.0;
+        // Update and get position & events from the OpenXR runtime
+        openxr_instance.update(&delta_time,
+                               &frame_transforms);
 
-        //ovrApp_HandleXrEvents(&appState);
+        // Non-runtine Update
 
-        /*if (appState.SessionActive == false) {
-            continue;
-        }*/
-
-
-        
-
-        // update input information (controller state)
-
-        // OpenXR input TODO
-        {
-        }
+        // Render
 
         // Composite layer, dont need them (right?)
+        const XrCompositionLayerBaseHeader *layers = {
+                (const XrCompositionLayerBaseHeader* const) &openxr_instance.projection_layer
+        };
 
-        // Compose the layers for this frame.
-        /*const XrCompositionLayerBaseHeader* layers[ovrMaxLayerCount] = {};
-        for (int i = 0; i < appState.LayerCount; i++) {
-            layers[i] = (const XrCompositionLayerBaseHeader*)&appState.Layers[i];
-        }
+        XrFrameEndInfo frameEndInfo;
+        frameEndInfo.type = XR_TYPE_FRAME_END_INFO;
+        frameEndInfo.displayTime = openxr_instance.frame_state.predictedDisplayTime;
+        frameEndInfo.layerCount = 1;
+        frameEndInfo.layers = &layers;
+        frameEndInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+        frameEndInfo.next = NULL;
 
-        XrFrameEndInfo endFrameInfo = {};
-        endFrameInfo.type = XR_TYPE_FRAME_END_INFO;
-        endFrameInfo.displayTime = frameState.predictedDisplayTime;
-        endFrameInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
-        endFrameInfo.layerCount = appState.LayerCount;
-        endFrameInfo.layers = layers;
-
-        OXR(xrEndFrame(appState.Session, &endFrameInfo));*/
+        xrEndFrame(openxr_instance.xr_session,
+                   &frameEndInfo);
     }
 
 
