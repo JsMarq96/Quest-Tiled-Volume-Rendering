@@ -176,13 +176,14 @@ void android_main(struct android_app* app) {
                 (const XrCompositionLayerBaseHeader* const) &openxr_instance.projection_layer
         };
 
-        XrFrameEndInfo frameEndInfo;
-        frameEndInfo.type = XR_TYPE_FRAME_END_INFO;
-        frameEndInfo.displayTime = openxr_instance.frame_state.predictedDisplayTime;
-        frameEndInfo.layerCount = 1;
-        frameEndInfo.layers = &layers;
-        frameEndInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
-        frameEndInfo.next = NULL;
+        XrFrameEndInfo frameEndInfo = {
+                .type = XR_TYPE_FRAME_END_INFO,
+                .next = NULL,
+                .displayTime = openxr_instance.frame_state.predictedDisplayTime,
+                .environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE,
+                .layerCount = 1,
+                .layers = &layers,
+        };
 
         xrEndFrame(openxr_instance.xr_session,
                    &frameEndInfo);
