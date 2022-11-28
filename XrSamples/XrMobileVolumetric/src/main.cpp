@@ -124,17 +124,21 @@ void android_main(struct android_app* app) {
     app_state.application_vm = app->activity->vm;
     app_state.application_activity = app->activity->clazz; // ??
 
+    sEglContext egl;
+    egl.create();
+
     sOpenXRFramebuffer framebuffer;
     openxr_instance.init(&framebuffer);
 
     // Init renderer with the framebuffer data from OpenXR
+    renderer.init(framebuffer);
 
     app->userData = &app_state;
     app->onAppCmd = app_handle_cmd;
 
     // Game Loop
     while (app->destroyRequested == 0) {
-        // Read all pending events.
+        // Read all pending android events
         for (;;) {
             int events;
             struct android_poll_source* source;
@@ -144,7 +148,10 @@ void android_main(struct android_app* app) {
                     (app_state.resumed == false && app->destroyRequested == 0)
                     ? -1
                     : 0;
-            if (ALooper_pollAll(timeoutMilliseconds, NULL, &events, (void**)&source) < 0) {
+            if (ALooper_pollAll(timeoutMilliseconds,
+                                NULL,
+                                &events,
+                                (void**)&source) < 0) {
                 break;
             }
 
@@ -161,48 +168,15 @@ void android_main(struct android_app* app) {
         }*/
 
 
-
-        // NOTE: OpenXR does not use the concept of frame indices. Instead,
-        // XrWaitFrame returns the predicted display time.
-        /*XrFrameWaitInfo waitFrameInfo = {};
-        waitFrameInfo.type = XR_TYPE_FRAME_WAIT_INFO;
-        waitFrameInfo.next = NULL;
-
-        XrFrameState frameState = {};
-        frameState.type = XR_TYPE_FRAME_STATE;
-        frameState.next = NULL;
-
-        OXR(xrWaitFrame(appState.Session, &waitFrameInfo, &frameState));*/
-
-        // Get the HMD pose, predicted for the middle of the time period during which
-        // the new eye images will be displayed. The number of frames predicted ahead
-        // depends on the pipeline depth of the engine and the synthesis rate.
-        // The better the prediction, the less black will be pulled in at the edges.
-
-        //
-
-
+        
 
         // update input information (controller state)
 
-        // OpenXR input
+        // OpenXR input TODO
         {
         }
 
-        // Set-up the compositor layers for this frame.
-        // NOTE: Multiple independent layers are allowed, but they need to be added
-        // in a depth consistent order.
-
-
-
-        // Render the world-view layer (simple ground plane)
-
-
-        // Build the cylinder layer
-
-
-        // Build the quad layer
-
+        // Composite layer, dont need them (right?)
 
         // Compose the layers for this frame.
         /*const XrCompositionLayerBaseHeader* layers[ovrMaxLayerCount] = {};
@@ -220,26 +194,9 @@ void android_main(struct android_app* app) {
         OXR(xrEndFrame(appState.Session, &endFrameInfo));*/
     }
 
-    //ovrRenderer_Destroy(&appState.Renderer);
 
 
-    //free(projections);
-
-    /*ovrScene_Destroy(&appState.Scene);
-    ovrEgl_DestroyContext(&appState.Egl);
-
-    OXR(xrDestroySpace(appState.HeadSpace));
-    OXR(xrDestroySpace(appState.LocalSpace));
-    // StageSpace is optional.
-    if (appState.StageSpace != XR_NULL_HANDLE) {
-        OXR(xrDestroySpace(appState.StageSpace));
-    }*/
-    //OXR(xrDestroySpace(appState.FakeStageSpace));
-    //appState.CurrentSpace = XR_NULL_HANDLE;
-    //OXR(xrDestroySession(appState.Session));
-    //OXR(xrDestroyInstance(appState.Instance));
-
-    //ovrApp_Destroy(&appState);
+    // Cleanup TODO
 
     (*app->activity->vm).DetachCurrentThread();
 }

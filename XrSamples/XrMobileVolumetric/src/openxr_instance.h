@@ -91,10 +91,11 @@ struct sOpenXR_Instance {
     XrInstance xr_instance;
     XrSystemId xr_sys_id;
     XrSession xr_session;
-    XrSpace xr_stage_space, xr_local_space;
+    XrSpace xr_stage_space, xr_local_space, xr_head_space;
     sEglContext egl;
 
     XrViewConfigurationView view_configs[MAX_EYE_NUMBER];
+    XrViewConfigurationProperties view_config_prop;
     XrView eye_projections[MAX_EYE_NUMBER];
 
 
@@ -221,6 +222,15 @@ struct sOpenXR_Instance {
             view_configs[1] = views[1];
         }
 
+        // Load Viewport configuration =========
+        view_config_prop = {
+                .type = XR_TYPE_VIEW_CONFIGURATION_PROPERTIES
+        };
+
+        xrGetViewConfigurationProperties(xr_instance,
+                                         xr_sys_id,
+                                         stereo_view_config,
+                                         &view_config_prop);
 
         // Color space???
 
@@ -266,6 +276,12 @@ struct sOpenXR_Instance {
                                &space_info,
                                &xr_local_space);
 
+        space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
+        space_info.poseInReferenceSpace.orientation.w = 1.0f; // ?
+        xrCreateReferenceSpace(xr_session,
+                               &space_info,
+                               &xr_head_space);
+
         // CONFIG VIEWS ================================================================
         for(uint16_t i = 0; i < MAX_EYE_NUMBER; i++) { // To fill on the realtime
             memset(&eye_projections[i],
@@ -284,6 +300,80 @@ struct sOpenXR_Instance {
                           GL_SRGB8_ALPHA8);
 
         // TODO: Foveation
+    }
+
+    void update(double *delta_time) {
+        // NOTE: OpenXR does not use the concept of frame indices. Instead,
+        // XrWaitFrame returns the predicted display time.
+        XrFrameWaitInfo waitFrameInfo = {};
+        waitFrameInfo.type = XR_TYPE_FRAME_WAIT_INFO;
+        waitFrameInfo.next = NULL;
+
+        XrFrameState frameState = {};
+        frameState.type = XR_TYPE_FRAME_STATE;
+        frameState.next = NULL;
+
+        xrWaitFrame(xr_session,
+                    &waitFrameInfo,
+                    &frameState);
+
+        // Get the HMD pose, predicted for the middle of the time period during which
+        // the new eye images will be displayed. The number of frames predicted ahead
+        // depends on the pipeline depth of the engine and the synthesis rate.
+        // The better the prediction, the less black will be pulled in at the edges.
+
+        XrFrameBeginInfo begin_frame_desc = {
+                .type = XR_TYPE_FRAME_BEGIN_INFO,
+                .next = NULL
+        };
+        xrBeginFrame(xr_session,
+                     &begin_frame_desc);
+
+        // Get space tracking ===
+        XrSpaceLocation location = {.type = XR_TYPE_SPACE_LOCATION};
+        xrLocateSpace(xr_stage_space,
+                      xr_local_space,
+                      frameState.predictedDisplayTime,
+                      &location);
+
+        // Get Projection ===
+        XrViewLocateInfo projection_info = {
+                .type = XR_TYPE_VIEW_LOCATE_INFO,
+                .viewConfigurationType = view_config_prop.viewConfigurationType,
+                .displayTime = frameState.predictedDisplayTime,
+                .space = xr_head_space
+        };
+
+        XrViewState view_state = {
+                .type = XR_TYPE_VIEW_STATE,
+                .next = NULL
+        };
+
+        uint32_t projection_capacity = MAX_EYE_NUMBER;
+        xrLocateViews(xr_session,
+                      &projection_info,
+                      &view_state,
+                      projection_capacity,
+                      &projection_capacity,
+                      eye_projections);
+
+        *delta_time = FromXrTime(frameState.predictedDisplayTime);
+
+        // Generate view projections
+        XrPosef viewTransform[2];
+
+        for (int eye = 0; eye < MAX_EYE_NUMBER; eye++) {
+            XrPosef xfHeadFromEye = eye_projections[eye].pose;
+            XrPosef xfStageFromEye = XrPosef_Multiply(xfStageFromHead, xfHeadFromEye);
+            viewTransform[eye] = XrPosef_Inverse(xfStageFromEye);
+
+            sceneMatrices.ViewMatrix[eye] =
+                    XrMatrix4x4f_CreateFromRigidTransform(&viewTransform[eye]);
+
+            const XrFovf fov = projections[eye].fov;
+            XrMatrix4x4f_CreateProjectionFov(
+                    &sceneMatrices.ProjectionMatrix[eye], GRAPHICS_OPENGL_ES, fov, 0.1f, 0.0f);
+        }
     }
 };
 
