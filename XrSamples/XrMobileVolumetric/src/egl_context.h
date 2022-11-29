@@ -55,7 +55,6 @@ struct sEglContext {
                 EGL_SAMPLES, 0,
                 EGL_NONE,
         };
-        EGLConfig found_config = NULL;
         for (int i = 0; i < num_configs; ++i) {
             EGLConfig it_config = configs[i];
 
@@ -123,7 +122,7 @@ struct sEglContext {
         static const EGLint CONTEXT_ATTRIBS[] = {EGL_CONTEXT_CLIENT_VERSION, 3,
                                                  EGL_NONE};
         context = eglCreateContext(display,
-                                   found_config,
+                                   config,
                                    EGL_NO_CONTEXT,
                                    CONTEXT_ATTRIBS);
         if (context == EGL_NO_CONTEXT) {
@@ -138,7 +137,7 @@ struct sEglContext {
                 EGL_NONE,
         };
         surface = eglCreatePbufferSurface(display,
-                                          found_config,
+                                          config,
                                           SURFACE_ATTRIBS);
         if (surface == EGL_NO_SURFACE) {
             //error("can't create EGL pixel buffer surface: %s", egl_get_error_string(eglGetError()));

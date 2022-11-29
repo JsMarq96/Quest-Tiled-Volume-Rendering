@@ -124,8 +124,22 @@ void android_main(struct android_app* app) {
     app_state.application_vm = app->activity->vm;
     app_state.application_activity = app->activity->clazz; // ??
 
-    sEglContext egl;
-    egl.create();
+     PFN_xrInitializeLoaderKHR xrInitializeLoaderKHR;
+     xrGetInstanceProcAddr(XR_NULL_HANDLE,
+                           "xrInitializeLoaderKHR",
+                           (PFN_xrVoidFunction*)&xrInitializeLoaderKHR);
+     if (xrInitializeLoaderKHR != NULL) {
+         XrLoaderInitInfoAndroidKHR loaderInitializeInfoAndroid;
+         memset(&loaderInitializeInfoAndroid,
+                0,
+                sizeof(loaderInitializeInfoAndroid));
+         loaderInitializeInfoAndroid.type = XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR;
+         loaderInitializeInfoAndroid.next = NULL;
+         loaderInitializeInfoAndroid.applicationVM = app->activity->vm;
+         loaderInitializeInfoAndroid.applicationContext = app->activity->clazz;
+
+         xrInitializeLoaderKHR((XrLoaderInitInfoBaseHeaderKHR*)&loaderInitializeInfoAndroid);
+     }
 
     sOpenXRFramebuffer framebuffer;
     openxr_instance.init(&framebuffer);
@@ -136,20 +150,31 @@ void android_main(struct android_app* app) {
     app->userData = &app_state;
     app->onAppCmd = app_handle_cmd;
 
-    sFrameTransforms frame_transforms = {};
+
+     // Composite layer, dont need them (right?)
+     const XrCompositionLayerBaseHeader *layers = {
+             (const XrCompositionLayerBaseHeader* const) &openxr_instance.projection_layer
+     };
+
+     XrFrameEndInfo frameEndInfo = {
+             .type = XR_TYPE_FRAME_END_INFO,
+             .next = NULL,
+             .displayTime = openxr_instance.frame_state.predictedDisplayTime,
+             .environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE,
+             .layerCount = 1,
+             .layers = &layers,
+     };
 
     // Game Loop
     while (app->destroyRequested == 0) {
         // Read all pending android events
         for (;;) {
             int events;
-            struct android_poll_source* source;
+            struct android_poll_source* source = NULL;
             // If the timeout is zero, returns immediately without blocking.
             // If the timeout is negative, waits indefinitely until an event appears.
             const int timeoutMilliseconds =
-                    (app_state.resumed == false && app->destroyRequested == 0)
-                    ? -1
-                    : 0;
+                    (app_state.resumed == false && app->destroyRequested == 0) ? -1 : 0;
             if (ALooper_pollAll(timeoutMilliseconds,
                                 NULL,
                                 &events,
@@ -164,6 +189,7 @@ void android_main(struct android_app* app) {
         }
         double delta_time = 0.0;
         // Update and get position & events from the OpenXR runtime
+        sFrameTransforms frame_transforms = {};
         openxr_instance.update(&delta_time,
                                &frame_transforms);
 
@@ -171,19 +197,7 @@ void android_main(struct android_app* app) {
 
         // Render
 
-        // Composite layer, dont need them (right?)
-        const XrCompositionLayerBaseHeader *layers = {
-                (const XrCompositionLayerBaseHeader* const) &openxr_instance.projection_layer
-        };
-
-        XrFrameEndInfo frameEndInfo = {
-                .type = XR_TYPE_FRAME_END_INFO,
-                .next = NULL,
-                .displayTime = openxr_instance.frame_state.predictedDisplayTime,
-                .environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE,
-                .layerCount = 1,
-                .layers = &layers,
-        };
+        frameEndInfo.displayTime = openxr_instance.frame_state.predictedDisplayTime;
 
         xrEndFrame(openxr_instance.xr_session,
                    &frameEndInfo);

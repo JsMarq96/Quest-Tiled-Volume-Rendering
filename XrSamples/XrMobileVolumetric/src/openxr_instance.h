@@ -110,18 +110,53 @@ struct sOpenXR_Instance {
 
 
     void init(sOpenXRFramebuffer *framebuffer) {
+
         // Load extensions ==============================================================
+
+        XrResult result;
+        PFN_xrEnumerateInstanceExtensionProperties xrEnumerateInstanceExtensionProperties;
+        (result = xrGetInstanceProcAddr(
+                XR_NULL_HANDLE,
+                "xrEnumerateInstanceExtensionProperties",
+                (PFN_xrVoidFunction*)&xrEnumerateInstanceExtensionProperties));
+        if (result != XR_SUCCESS) {
+            //ALOGE("Failed to get xrEnumerateInstanceExtensionProperties function pointer.");
+            exit(1);
+        }
+
+        uint32_t numInputExtensions = 0;
+        uint32_t numOutputExtensions = 0;
+        (xrEnumerateInstanceExtensionProperties(
+                NULL, numInputExtensions, &numOutputExtensions, NULL));
+
+        numInputExtensions = numOutputExtensions;
+
+        XrExtensionProperties* extensionProperties =
+                (XrExtensionProperties*)malloc(numOutputExtensions * sizeof(XrExtensionProperties));
+
+        for (uint32_t i = 0; i < numOutputExtensions; i++) {
+            extensionProperties[i].type = XR_TYPE_EXTENSION_PROPERTIES;
+            extensionProperties[i].next = NULL;
+        }
+
+        (xrEnumerateInstanceExtensionProperties(
+                NULL, numInputExtensions, &numOutputExtensions, extensionProperties));
+        for (uint32_t i = 0; i < numOutputExtensions; i++) {
+            //ALOGV("Extension #%d = '%s'.", i, extensionProperties[i].extensionName);
+        }
+
+
         uint32_t extension_count = 9;
         const char *enabled_extensions[12] = {
                 XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME,
                 XR_EXT_PERFORMANCE_SETTINGS_EXTENSION_NAME,
                 XR_KHR_ANDROID_THREAD_SETTINGS_EXTENSION_NAME,
-                XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME,
-                XR_FB_COLOR_SPACE_EXTENSION_NAME,
                 XR_FB_SWAPCHAIN_UPDATE_STATE_EXTENSION_NAME,
                 XR_FB_SWAPCHAIN_UPDATE_STATE_OPENGL_ES_EXTENSION_NAME,
                 XR_FB_FOVEATION_EXTENSION_NAME,
-                XR_FB_FOVEATION_CONFIGURATION_EXTENSION_NAME
+                XR_FB_FOVEATION_CONFIGURATION_EXTENSION_NAME,
+                XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME,
+                XR_FB_COLOR_SPACE_EXTENSION_NAME
         };
         XrInstanceCreateInfo instance_info = {
                 .type = XR_TYPE_INSTANCE_CREATE_INFO,
@@ -154,6 +189,17 @@ struct sOpenXR_Instance {
                            &xr_sys_id) == XR_SUCCESS && "Error getting system");
 
         // Create EGL context ========================================================
+        PFN_xrGetOpenGLESGraphicsRequirementsKHR pfnGetOpenGLESGraphicsRequirementsKHR = NULL;
+        xrGetInstanceProcAddr(xr_instance,
+                                  "xrGetOpenGLESGraphicsRequirementsKHR",
+                                  (PFN_xrVoidFunction*)(&pfnGetOpenGLESGraphicsRequirementsKHR));
+
+        XrGraphicsRequirementsOpenGLESKHR graphics_requirements = {
+                .type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR
+        };
+        pfnGetOpenGLESGraphicsRequirementsKHR(xr_instance,
+                                              xr_sys_id,
+                                              &graphics_requirements);
         egl.create();
 
         // Create the OpenXR session ===================================================

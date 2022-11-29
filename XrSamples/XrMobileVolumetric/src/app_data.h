@@ -7,8 +7,8 @@
 
 #define APP_NAME "Understanding_volume_render"
 #define ENGINE_NAME "Volatile"
-#define APP_VERSION 0
-#define ENGINE_VERSION 0
+#define APP_VERSION 1
+#define ENGINE_VERSION 1
 
 // CONSTANTS =====
 #define MAX_EYE_NUMBER 2
