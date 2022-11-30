@@ -200,7 +200,7 @@ void Render::sInstance::render_frame(const bool clean_frame = true) {
             glBindFramebuffer(GL_FRAMEBUFFER, base_framebuffer);
         }
 
-        // Celar the curent buffer
+        // Clear the curent buffer
         if (pass.clean_viewport && clean_frame) {
             glClearColor(pass.rgba_clear_values[0],
                          pass.rgba_clear_values[1],
