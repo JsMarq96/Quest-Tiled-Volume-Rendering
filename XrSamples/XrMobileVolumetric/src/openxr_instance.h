@@ -19,7 +19,7 @@
 #include <cassert>
 #include <GLES3/gl3.h>
 
-struct sFrameTransforms {
+struct __attribute__((packed)) sFrameTransforms {
     XrMatrix4x4f view[MAX_EYE_NUMBER];
     XrMatrix4x4f projection[MAX_EYE_NUMBER];
     XrMatrix4x4f viewprojection[MAX_EYE_NUMBER];
@@ -112,244 +112,253 @@ struct sOpenXR_Instance {
     void init(sOpenXRFramebuffer *framebuffer) {
 
         // Load extensions ==============================================================
+        {
 
-        XrResult result;
-        PFN_xrEnumerateInstanceExtensionProperties xrEnumerateInstanceExtensionProperties;
-        (result = xrGetInstanceProcAddr(
-                XR_NULL_HANDLE,
-                "xrEnumerateInstanceExtensionProperties",
-                (PFN_xrVoidFunction*)&xrEnumerateInstanceExtensionProperties));
-        if (result != XR_SUCCESS) {
-            //ALOGE("Failed to get xrEnumerateInstanceExtensionProperties function pointer.");
-            exit(1);
+            XrResult result;
+            PFN_xrEnumerateInstanceExtensionProperties xrEnumerateInstanceExtensionProperties;
+            (result = xrGetInstanceProcAddr(
+                    XR_NULL_HANDLE,
+                    "xrEnumerateInstanceExtensionProperties",
+                    (PFN_xrVoidFunction*)&xrEnumerateInstanceExtensionProperties));
+            if (result != XR_SUCCESS) {
+                //ALOGE("Failed to get xrEnumerateInstanceExtensionProperties function pointer.");
+                exit(1);
+            }
+
+            uint32_t numInputExtensions = 0;
+            uint32_t numOutputExtensions = 0;
+            (xrEnumerateInstanceExtensionProperties(
+                    NULL, numInputExtensions, &numOutputExtensions, NULL));
+
+            numInputExtensions = numOutputExtensions;
+
+            XrExtensionProperties* extensionProperties =
+                    (XrExtensionProperties*)malloc(numOutputExtensions * sizeof(XrExtensionProperties));
+
+            for (uint32_t i = 0; i < numOutputExtensions; i++) {
+                extensionProperties[i].type = XR_TYPE_EXTENSION_PROPERTIES;
+                extensionProperties[i].next = NULL;
+            }
+
+            (xrEnumerateInstanceExtensionProperties(
+                    NULL, numInputExtensions, &numOutputExtensions, extensionProperties));
+
+
+
+            uint32_t extension_count = 9;
+            const char *enabled_extensions[12] = {
+                    XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME,
+                    XR_EXT_PERFORMANCE_SETTINGS_EXTENSION_NAME,
+                    XR_KHR_ANDROID_THREAD_SETTINGS_EXTENSION_NAME,
+                    XR_FB_SWAPCHAIN_UPDATE_STATE_EXTENSION_NAME,
+                    XR_FB_SWAPCHAIN_UPDATE_STATE_OPENGL_ES_EXTENSION_NAME,
+                    XR_FB_FOVEATION_EXTENSION_NAME,
+                    XR_FB_FOVEATION_CONFIGURATION_EXTENSION_NAME,
+                    XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME,
+                    XR_FB_COLOR_SPACE_EXTENSION_NAME
+            };
+            XrInstanceCreateInfo instance_info = {
+                    .type = XR_TYPE_INSTANCE_CREATE_INFO,
+                    .next = NULL, // To fill
+                    .createFlags = 0,
+                    .applicationInfo = {
+                            .applicationName = APP_NAME,
+                            .applicationVersion = APP_VERSION,
+                            .engineName = ENGINE_NAME,
+                            .engineVersion = ENGINE_VERSION,
+                            .apiVersion = XR_CURRENT_API_VERSION
+                    },
+                    .enabledApiLayerCount = 0,
+                    .enabledApiLayerNames = NULL,
+                    .enabledExtensionCount = extension_count, // to fill
+                    .enabledExtensionNames = enabled_extensions // to fill
+            };
+
+            assert(xrCreateInstance(&instance_info,
+                                    &xr_instance) == XR_SUCCESS && "Error loading OpenXR Instance");
+
+            XrSystemGetInfo system_info = {
+                    .type = XR_TYPE_SYSTEM_GET_INFO,
+                    .next = NULL,
+                    .formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY
+            };
+
+            assert(xrGetSystem(xr_instance,
+                               &system_info,
+                               &xr_sys_id) == XR_SUCCESS && "Error getting system");
         }
-
-        uint32_t numInputExtensions = 0;
-        uint32_t numOutputExtensions = 0;
-        (xrEnumerateInstanceExtensionProperties(
-                NULL, numInputExtensions, &numOutputExtensions, NULL));
-
-        numInputExtensions = numOutputExtensions;
-
-        XrExtensionProperties* extensionProperties =
-                (XrExtensionProperties*)malloc(numOutputExtensions * sizeof(XrExtensionProperties));
-
-        for (uint32_t i = 0; i < numOutputExtensions; i++) {
-            extensionProperties[i].type = XR_TYPE_EXTENSION_PROPERTIES;
-            extensionProperties[i].next = NULL;
-        }
-
-        (xrEnumerateInstanceExtensionProperties(
-                NULL, numInputExtensions, &numOutputExtensions, extensionProperties));
-        for (uint32_t i = 0; i < numOutputExtensions; i++) {
-            //ALOGV("Extension #%d = '%s'.", i, extensionProperties[i].extensionName);
-        }
-
-
-        uint32_t extension_count = 9;
-        const char *enabled_extensions[12] = {
-                XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME,
-                XR_EXT_PERFORMANCE_SETTINGS_EXTENSION_NAME,
-                XR_KHR_ANDROID_THREAD_SETTINGS_EXTENSION_NAME,
-                XR_FB_SWAPCHAIN_UPDATE_STATE_EXTENSION_NAME,
-                XR_FB_SWAPCHAIN_UPDATE_STATE_OPENGL_ES_EXTENSION_NAME,
-                XR_FB_FOVEATION_EXTENSION_NAME,
-                XR_FB_FOVEATION_CONFIGURATION_EXTENSION_NAME,
-                XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME,
-                XR_FB_COLOR_SPACE_EXTENSION_NAME
-        };
-        XrInstanceCreateInfo instance_info = {
-                .type = XR_TYPE_INSTANCE_CREATE_INFO,
-                .next = NULL, // To fill
-                .createFlags = 0,
-                .applicationInfo = {
-                        .applicationName = APP_NAME,
-                        .applicationVersion = APP_VERSION,
-                        .engineName = ENGINE_NAME,
-                        .engineVersion = ENGINE_VERSION,
-                        .apiVersion = XR_CURRENT_API_VERSION
-                },
-                .enabledApiLayerCount = 0,
-                .enabledApiLayerNames = NULL,
-                .enabledExtensionCount = extension_count, // to fill
-                .enabledExtensionNames = enabled_extensions // to fill
-        };
-
-        assert(xrCreateInstance(&instance_info,
-                                &xr_instance) == XR_SUCCESS && "Error loading OpenXR Instance");
-
-        XrSystemGetInfo system_info = {
-                .type = XR_TYPE_SYSTEM_GET_INFO,
-                .next = NULL,
-                .formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY
-        };
-
-        assert(xrGetSystem(xr_instance,
-                           &system_info,
-                           &xr_sys_id) == XR_SUCCESS && "Error getting system");
 
         // Create EGL context ========================================================
-        PFN_xrGetOpenGLESGraphicsRequirementsKHR pfnGetOpenGLESGraphicsRequirementsKHR = NULL;
-        xrGetInstanceProcAddr(xr_instance,
+        {
+            PFN_xrGetOpenGLESGraphicsRequirementsKHR pfnGetOpenGLESGraphicsRequirementsKHR = NULL;
+            xrGetInstanceProcAddr(xr_instance,
                                   "xrGetOpenGLESGraphicsRequirementsKHR",
                                   (PFN_xrVoidFunction*)(&pfnGetOpenGLESGraphicsRequirementsKHR));
 
-        XrGraphicsRequirementsOpenGLESKHR graphics_requirements = {
-                .type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR
-        };
-        pfnGetOpenGLESGraphicsRequirementsKHR(xr_instance,
-                                              xr_sys_id,
-                                              &graphics_requirements);
-        egl.create();
+            XrGraphicsRequirementsOpenGLESKHR graphics_requirements = {
+                    .type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR
+            };
+            pfnGetOpenGLESGraphicsRequirementsKHR(xr_instance,
+                                                  xr_sys_id,
+                                                  &graphics_requirements);
+            egl.create();
+        }
 
         // Create the OpenXR session ===================================================
-        XrGraphicsBindingOpenGLESAndroidKHR graphics_binding = {
-                .type = XR_TYPE_GRAPHICS_BINDING_OPENGL_ES_ANDROID_KHR,
-                .next = NULL,
-                .display = egl.display,
-                .config = egl.config,
-                .context = egl.context
-        };
+        {
+            XrGraphicsBindingOpenGLESAndroidKHR graphics_binding = {
+                    .type = XR_TYPE_GRAPHICS_BINDING_OPENGL_ES_ANDROID_KHR,
+                    .next = NULL,
+                    .display = egl.display,
+                    .config = egl.config,
+                    .context = egl.context
+            };
 
-        XrSessionCreateInfo session_info = {
-                .type = XR_TYPE_SESSION_CREATE_INFO,
-                .next = &graphics_binding,
-                .createFlags = 0,
-                .systemId = xr_sys_id
-        };
+            XrSessionCreateInfo session_info = {
+                    .type = XR_TYPE_SESSION_CREATE_INFO,
+                    .next = &graphics_binding,
+                    .createFlags = 0,
+                    .systemId = xr_sys_id
+            };
 
-        assert(xrCreateSession(xr_instance,
-                               &session_info,
-                               &xr_session) == XR_SUCCESS && "Failed to create session");
+            assert(xrCreateSession(xr_instance,
+                                   &session_info,
+                                   &xr_session) == XR_SUCCESS && "Failed to create session");
+        }
 
         // Load ViewPort data ===============================================================
         const XrViewConfigurationType stereo_view_config = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
         uint32_t viewport_count = 0;
-        xrEnumerateViewConfigurations(xr_instance,
-                                      xr_sys_id,
-                                      0,
-                                      &viewport_count,
-                                      NULL);
+        {
+            xrEnumerateViewConfigurations(xr_instance,
+                                          xr_sys_id,
+                                          0,
+                                          &viewport_count,
+                                          NULL);
 
-        assert(viewport_count > 0 && "No enought viewport configs on device");
+            assert(viewport_count > 0 && "No enought viewport configs on device");
 
-        XrViewConfigurationType *viewport_configs = (XrViewConfigurationType*) malloc(sizeof(XrViewConfigurationType) * viewport_count);
-        xrEnumerateViewConfigurations(xr_instance,
-                                      xr_sys_id,
-                                      viewport_count,
-                                      &viewport_count,
-                                      viewport_configs);
+            XrViewConfigurationType *viewport_configs = (XrViewConfigurationType*) malloc(sizeof(XrViewConfigurationType) * viewport_count);
+            xrEnumerateViewConfigurations(xr_instance,
+                                          xr_sys_id,
+                                          viewport_count,
+                                          &viewport_count,
+                                          viewport_configs);
 
-        for(uint32_t i = 0; i < viewport_count; i++) {
-            const XrViewConfigurationType vp_config_type = viewport_configs[i];
+            for(uint32_t i = 0; i < viewport_count; i++) {
+                const XrViewConfigurationType vp_config_type = viewport_configs[i];
 
-            // Only interested in stereo rendering
-            if (vp_config_type != stereo_view_config) {
-                continue;
+                // Only interested in stereo rendering
+                if (vp_config_type != stereo_view_config) {
+                    continue;
+                }
+
+                uint32_t view_count = 0;
+                xrEnumerateViewConfigurationViews(xr_instance,
+                                                  xr_sys_id,
+                                                  vp_config_type,
+                                                  0,
+                                                  &view_count,
+                                                  NULL);
+                if (view_count <= 0) {
+                    continue; // Empty viewport
+                }
+
+                assert(view_count == MAX_EYE_NUMBER && "Only need two eyes on stereo rendering!");
+
+                XrViewConfigurationView *views = (XrViewConfigurationView*) malloc(sizeof(XrViewConfigurationView) * view_count);
+                for(uint32_t j = 0; j < view_count; j++) {
+                    views[j].type = XR_TYPE_VIEW_CONFIGURATION_VIEW;
+                    views[j].next = NULL;
+                }
+
+                xrEnumerateViewConfigurationViews(xr_instance,
+                                                  xr_sys_id,
+                                                  vp_config_type,
+                                                  view_count,
+                                                  &view_count,
+                                                  views);
+
+                view_configs[0] = views[0];
+                view_configs[1] = views[1];
             }
-
-            uint32_t view_count = 0;
-            xrEnumerateViewConfigurationViews(xr_instance,
-                                              xr_sys_id,
-                                              vp_config_type,
-                                              0,
-                                              &view_count,
-                                              NULL);
-            if (view_count <= 0) {
-                continue; // Empty viewport
-            }
-
-            assert(view_count == MAX_EYE_NUMBER && "Only need two eyes on stereo rendering!");
-
-            XrViewConfigurationView *views = (XrViewConfigurationView*) malloc(sizeof(XrViewConfigurationView) * view_count);
-            for(uint32_t j = 0; j < view_count; j++) {
-                views[j].type = XR_TYPE_VIEW_CONFIGURATION_VIEW;
-                views[j].next = NULL;
-            }
-
-            xrEnumerateViewConfigurationViews(xr_instance,
-                                              xr_sys_id,
-                                              vp_config_type,
-                                              view_count,
-                                              &view_count,
-                                              views);
-
-            view_configs[0] = views[0];
-            view_configs[1] = views[1];
         }
 
         // Load Viewport configuration =========
-        view_config_prop = {
-                .type = XR_TYPE_VIEW_CONFIGURATION_PROPERTIES
-        };
+        {
+            view_config_prop = {
+                    .type = XR_TYPE_VIEW_CONFIGURATION_PROPERTIES
+            };
 
-        xrGetViewConfigurationProperties(xr_instance,
-                                         xr_sys_id,
-                                         stereo_view_config,
-                                         &view_config_prop);
+            xrGetViewConfigurationProperties(xr_instance,
+                                             xr_sys_id,
+                                             stereo_view_config,
+                                             &view_config_prop);
 
-        // Color space???
+            // Color space???
 
-        //Refresh rate
+            //Refresh rate
 
-        // List reference spaces NOTE: trhis probably can be skipped also ==================
-        uint32_t output_spaces_count = 0;
-        xrEnumerateReferenceSpaces(xr_session,
-                                   0, &output_spaces_count,
-                                   NULL);
+            // List reference spaces NOTE: trhis probably can be skipped also ==================
+            uint32_t output_spaces_count = 0;
+            xrEnumerateReferenceSpaces(xr_session,
+                                       0, &output_spaces_count,
+                                       NULL);
 
-        XrReferenceSpaceType *reference_spaces = (XrReferenceSpaceType *) malloc(
-                sizeof(XrReferenceSpaceType) * output_spaces_count);
+            XrReferenceSpaceType *reference_spaces = (XrReferenceSpaceType *) malloc(
+                    sizeof(XrReferenceSpaceType) * output_spaces_count);
 
-        xrEnumerateReferenceSpaces(xr_session,
-                                   output_spaces_count,
-                                   &output_spaces_count,
-                                   reference_spaces);
+            xrEnumerateReferenceSpaces(xr_session,
+                                       output_spaces_count,
+                                       &output_spaces_count,
+                                       reference_spaces);
 
-        for (uint32_t i = 0; i < 0; i++) {
-            if (reference_spaces[i] == XR_REFERENCE_SPACE_TYPE_STAGE) {
-                break; // Supported
+            for (uint32_t i = 0; i < 0; i++) {
+                if (reference_spaces[i] == XR_REFERENCE_SPACE_TYPE_STAGE) {
+                    break; // Supported
+                }
             }
+
+            free(reference_spaces);
+
+            // Create the reference spaces for the rendering
+            XrReferenceSpaceCreateInfo space_info = {
+                    .type = XR_TYPE_REFERENCE_SPACE_CREATE_INFO,
+                    .next = NULL,
+                    .referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE,
+            };
+            space_info.poseInReferenceSpace.orientation.w = 0.0f;
+
+            xrCreateReferenceSpace(xr_session,
+                                   &space_info,
+                                   &xr_stage_space);
+
+            space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
+            space_info.poseInReferenceSpace.orientation.w = 1.0f; // ?
+            xrCreateReferenceSpace(xr_session,
+                                   &space_info,
+                                   &xr_local_space);
+
+            space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
+            space_info.poseInReferenceSpace.orientation.w = 1.0f; // ?
+            xrCreateReferenceSpace(xr_session,
+                                   &space_info,
+                                   &xr_head_space);
         }
 
-        free(reference_spaces);
-
-        // Create the reference spaces for the rendering
-        XrReferenceSpaceCreateInfo space_info = {
-                .type = XR_TYPE_REFERENCE_SPACE_CREATE_INFO,
-                .next = NULL,
-                .referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE,
-        };
-        space_info.poseInReferenceSpace.orientation.w = 0.0f;
-
-        xrCreateReferenceSpace(xr_session,
-                               &space_info,
-                               &xr_stage_space);
-
-        space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
-        space_info.poseInReferenceSpace.orientation.w = 1.0f; // ?
-        xrCreateReferenceSpace(xr_session,
-                               &space_info,
-                               &xr_local_space);
-
-        space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
-        space_info.poseInReferenceSpace.orientation.w = 1.0f; // ?
-        xrCreateReferenceSpace(xr_session,
-                               &space_info,
-                               &xr_head_space);
-
         // CONFIG VIEWS ================================================================
-        for(uint16_t i = 0; i < MAX_EYE_NUMBER; i++) { // To fill on the realtime
-            memset(&eye_projections[i],
-                   0,
-                   sizeof(XrView));
-            eye_projections[i].type = XR_TYPE_VIEW;
+        {
+            for(uint16_t i = 0; i < MAX_EYE_NUMBER; i++) { // To fill on the realtime
+                memset(&eye_projections[i],
+                       0,
+                       sizeof(XrView));
+                eye_projections[i].type = XR_TYPE_VIEW;
+            }
         }
 
         // CONFIG ACTION SPACES
 
         // Create SWAPCHAIN ===========================================================
-
         framebuffer->init(xr_session,
                           view_configs[0].maxImageRectWidth,
                           view_configs[0].maxImageRectHeight,
@@ -357,32 +366,34 @@ struct sOpenXR_Instance {
 
         // TODO: Foveation
 
-        // Composition layers: View projection layer
-        projection_layer = {
-                .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION,
-                .next = NULL,
-                .layerFlags = 0, //XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT | XR_COMPOSITION_LAYER_CORRECT_CHROMATIC_ABERRATION_BIT
-                .space = xr_head_space, // or xr_stage_space
-                .viewCount = viewport_count,
-                .views = projection_views
-        };
-
-        for(uint16_t i = 0; i < MAX_EYE_NUMBER; i++) {
-            projection_views[i] = {
-                    .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
+        // Composition layers: View projection layer =================================
+        {
+            projection_layer = {
+                    .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION,
                     .next = NULL,
-                    .subImage = {
-                            .swapchain = framebuffer->swapchain_handle,
-                            .imageRect = {
-                                    .offset = {0,0},
-                                    .extent = {
-                                            .width = (int32_t) view_configs[i].recommendedImageRectWidth,
-                                            .height = (int32_t) view_configs[i].recommendedImageRectHeight
-                                    }
-                            },
-                            .imageArrayIndex = 0
-                    }
+                    .layerFlags = 0, //XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT | XR_COMPOSITION_LAYER_CORRECT_CHROMATIC_ABERRATION_BIT
+                    .space = xr_head_space, // or xr_stage_space
+                    .viewCount = viewport_count,
+                    .views = projection_views
             };
+
+            for(uint16_t i = 0; i < MAX_EYE_NUMBER; i++) {
+                projection_views[i] = {
+                        .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
+                        .next = NULL,
+                        .subImage = {
+                                .swapchain = framebuffer->swapchain_handle,
+                                .imageRect = {
+                                        .offset = {0,0},
+                                        .extent = {
+                                                .width = (int32_t) view_configs[i].recommendedImageRectWidth,
+                                                .height = (int32_t) view_configs[i].recommendedImageRectHeight
+                                        }
+                                },
+                                .imageArrayIndex = 0
+                        }
+                };
+            }
         }
     }
 

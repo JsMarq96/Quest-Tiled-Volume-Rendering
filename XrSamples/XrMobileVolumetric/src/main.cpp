@@ -145,11 +145,7 @@ void android_main(struct android_app* app) {
     openxr_instance.init(&framebuffer);
 
     // Init renderer with the framebuffer data from OpenXR
-    renderer.init(framebuffer);
-
-    app->userData = &app_state;
-    app->onAppCmd = app_handle_cmd;
-
+    //renderer.init(framebuffer);
 
      // Composite layer, dont need them (right?)
      const XrCompositionLayerBaseHeader *layers = {
@@ -165,37 +161,40 @@ void android_main(struct android_app* app) {
              .layers = &layers,
      };
 
+     sFrameTransforms frame_transforms = {};
+
     // Game Loop
     while (app->destroyRequested == 0) {
         // Read all pending android events
-        for (;;) {
-            int events;
+        for(;;) {
+            int events = 0;
             struct android_poll_source* source = NULL;
-            // If the timeout is zero, returns immediately without blocking.
-            // If the timeout is negative, waits indefinitely until an event appears.
-            const int timeoutMilliseconds =
-                    (app_state.resumed == false && app->destroyRequested == 0) ? -1 : 0;
-            if (ALooper_pollAll(timeoutMilliseconds,
+            // Check for system events with the androind_native_app_glue, based on the
+            // state of the app
+            if (ALooper_pollAll(app->destroyRequested  ? 0 : -1,
                                 NULL,
                                 &events,
                                 (void**)&source) < 0) {
                 break;
             }
 
-            // Process this event.
+            // Process the detected event
             if (source != NULL) {
-                source->process(app, source);
+                source->process(app,
+                                source);
             }
+
         }
         double delta_time = 0.0;
         // Update and get position & events from the OpenXR runtime
-        sFrameTransforms frame_transforms = {};
+
         openxr_instance.update(&delta_time,
                                &frame_transforms);
 
         // Non-runtine Update
 
         // Render
+
 
         frameEndInfo.displayTime = openxr_instance.frame_state.predictedDisplayTime;
 
