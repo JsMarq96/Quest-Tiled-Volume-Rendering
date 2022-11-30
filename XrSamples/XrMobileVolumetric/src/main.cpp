@@ -101,6 +101,8 @@ sOpenXR_Instance openxr_instance = {};
 
 Render::sInstance renderer = {};
 
+void render_pipeline_config();
+
 /**
  * This is the main entry point of a native application that is using
  * android_native_app_glue.  It runs in its own thread, with its own
@@ -114,7 +116,7 @@ void android_main(struct android_app* app) {
     (*app->activity->vm).AttachCurrentThread( &Env, NULL);
 
     // Note that AttachCurrentThread will reset the thread name.
-    prctl(PR_SET_NAME, (long)"OVR::Main", 0, 0, 0);
+    prctl(PR_SET_NAME, (long)"VRMain", 0, 0, 0);
 
     sAndroidState app_state = {};
 
@@ -145,7 +147,7 @@ void android_main(struct android_app* app) {
     openxr_instance.init(&framebuffer);
 
     // Init renderer with the framebuffer data from OpenXR
-    //renderer.init(framebuffer);
+    renderer.init(framebuffer);
 
      // Composite layer, dont need them (right?)
      const XrCompositionLayerBaseHeader *layers = {
@@ -207,4 +209,10 @@ void android_main(struct android_app* app) {
     // Cleanup TODO
 
     (*app->activity->vm).DetachCurrentThread();
+}
+
+
+
+void render_pipeline_config() {
+
 }

@@ -19,11 +19,11 @@
 #include <cassert>
 #include <GLES3/gl3.h>
 
-struct __attribute__((packed)) sFrameTransforms {
+struct sFrameTransforms {
     XrMatrix4x4f view[MAX_EYE_NUMBER];
     XrMatrix4x4f projection[MAX_EYE_NUMBER];
     XrMatrix4x4f viewprojection[MAX_EYE_NUMBER];
-};
+} __attribute__((packed));
 
 struct sOpenXRFramebuffer {
     uint32_t width = 0;

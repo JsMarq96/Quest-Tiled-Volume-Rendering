@@ -187,25 +187,15 @@ void Render::sInstance::change_graphic_state(const sGLState &new_state) {
     }
 }
 
-void Render::sInstance::render_frame(const glm::mat4x4 &view_proj_mat,
-                                     const glm::vec3 &cam_pos,
-                                     const uint32_t width,
-                                     const uint32_t heigth,
-                                     const bool clean_frame = true) {
+void Render::sInstance::render_frame(const bool clean_frame = true) {
     for(uint16_t j = 0; j < render_pass_size; j++) {
         // Bind the render pass
         sRenderPass &pass = render_passes[j];
 
+        const glm::mat4x4 vp_mat = pass.view_mat * pass.projection_mat;
+
         if (pass.target == FBO_TARGET) {
-            sFBO &curr_fbo = fbos[pass.fbo_id];
-
-            if (curr_fbo.width != width ||
-                curr_fbo.height != heigth) {
-                assert(false && "REINITIT FBO TODO");
-                //curr_fbo.reinit(width, heigth);
-            }
-
-            curr_fbo.bind();
+            fbos[pass.fbo_id].bind();
         } else {
             glBindFramebuffer(GL_FRAMEBUFFER, base_framebuffer);
         }
@@ -242,16 +232,24 @@ void Render::sInstance::render_frame(const glm::mat4x4 &view_proj_mat,
             glBindVertexArray(mesh.VAO);
 
             if (draw_call.use_transform) {
-                shader.set_uniform_matrix4("u_model_mat", model);
-                shader.set_uniform_matrix4("u_vp_mat", view_proj_mat);
+                shader.set_uniform_matrix4("u_model_mat",
+                                           model);
+                shader.set_uniform_matrix4("u_vp_mat",
+                                           vp_mat);
                 //shader.set_uniform_vector("u_camera_eye_local", cam_pos);
-                shader.set_uniform_vector("u_camera_eye_local", glm::vec3(model_invert * glm::vec4(cam_pos, 1.0f)));
+                shader.set_uniform_vector("u_camera_eye_local",
+                                          glm::vec3(model_invert * glm::vec4(pass.camera_position, 1.0f)));
             }
 
             if (mesh.is_indexed) {
-                glDrawElements(mesh.primitive, mesh.primitive_count, GL_UNSIGNED_SHORT, 0);
+                glDrawElements(mesh.primitive,
+                               mesh.primitive_count,
+                               GL_UNSIGNED_SHORT,
+                               0);
             } else {
-                glDrawArrays(mesh.primitive, 0, mesh.primitive_count);
+                glDrawArrays(mesh.primitive,
+                             0,
+                             mesh.primitive_count);
             }
 
             material_man.disable();
