@@ -34,18 +34,10 @@ Copyright : Copyright (c) Facebook Technologies, LLC and its affiliates. All rig
 #include <glm/gtc/type_ptr.hpp>
 
 #include "render.h"
-
-struct sAndroidState {
-    ANativeWindow *native_window = NULL;
-    bool resumed = false;
-
-    void *application_vm = NULL;
-    void *application_activity = NULL;
-
-};
+#include "application.h"
 
 static void app_handle_cmd(struct android_app* app, int32_t cmd) {
-    sAndroidState *app_state = (sAndroidState*) app->userData;
+    Application::sAndroidState *app_state = (Application::sAndroidState*) app->userData;
 
     switch (cmd) {
         // There is no APP_CMD_CREATE. The ANativeActivity creates the
@@ -119,7 +111,7 @@ void android_main(struct android_app* app) {
     // Note that AttachCurrentThread will reset the thread name.
     prctl(PR_SET_NAME, (long)"VRMain", 0, 0, 0);
 
-    sAndroidState app_state = {};
+     Application::sAndroidState app_state = {};
 
     app->userData = &app_state;
     app->onAppCmd = app_handle_cmd;
@@ -147,15 +139,17 @@ void android_main(struct android_app* app) {
     sOpenXRFramebuffer framebuffer;
     openxr_instance.init(&framebuffer);
 
+    app_state.main_thread = gettid();
+
     // Init renderer with the framebuffer data from OpenXR
     renderer.init(framebuffer);
 
-     // Composite layer, dont need them (right?)
+     // Composite layer
      const XrCompositionLayerBaseHeader *layers = {
              (const XrCompositionLayerBaseHeader* const) &openxr_instance.projection_layer
      };
 
-     XrFrameEndInfo frameEndInfo = {
+     XrFrameEndInfo frame_end_info = {
              .type = XR_TYPE_FRAME_END_INFO,
              .next = NULL,
              .displayTime = openxr_instance.frame_state.predictedDisplayTime,
@@ -214,7 +208,8 @@ void android_main(struct android_app* app) {
         double delta_time = 0.0;
         // Update and get position & events from the OpenXR runtime
 
-        openxr_instance.update(&delta_time,
+        openxr_instance.update(&app_state,
+                               &delta_time,
                                &frame_transforms);
 
         // Non-runtine Update
@@ -227,10 +222,13 @@ void android_main(struct android_app* app) {
 
         renderer.render_frame(true);
 
-        frameEndInfo.displayTime = openxr_instance.frame_state.predictedDisplayTime;
+        frame_end_info.displayTime = openxr_instance.frame_state.predictedDisplayTime;
 
-        xrEndFrame(openxr_instance.xr_session,
-                   &frameEndInfo);
+        //assert(xrEndFrame(openxr_instance.xr_session,
+        //                  &frame_end_info) == XR_SUCCESS && "Error submiting frame");
+        int code = xrEndFrame(openxr_instance.xr_session,
+                              &frame_end_info);
+        code +=1, code -=1;
     }
 
 

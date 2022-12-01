@@ -13,11 +13,14 @@
 #include <openxr/openxr_oculus.h>
 #include <openxr/openxr_oculus_helpers.h>
 
-#include "egl_context.h"
-#include "app_data.h"
 #include <cstring>
 #include <cassert>
 #include <GLES3/gl3.h>
+
+#include "egl_context.h"
+#include "app_data.h"
+#include "application.h"
+#include "device.h"
 
 struct sFrameTransforms {
     XrMatrix4x4f view[MAX_EYE_NUMBER];
@@ -397,11 +400,110 @@ struct sOpenXR_Instance {
         }
     }
 
+    void session_change_state(const XrSessionState &state,
+                              Application::sAndroidState *android_state) const {
+        if (state == XR_SESSION_STATE_READY) {
+            // Start the session!
+            XrSessionBeginInfo session_start_info = {
+                    .type = XR_TYPE_SESSION_BEGIN_INFO,
+                    .next = NULL,
+                    .primaryViewConfigurationType = view_config_prop.viewConfigurationType
+            };
 
-    void update(double *delta_time,
+            assert(xrBeginSession(xr_session,
+                                  &session_start_info) == XR_SUCCESS && "Error starting XR session");
+
+            PFN_xrPerfSettingsSetPerformanceLevelEXT pfnPerfSettingsSetPerformanceLevelEXT = NULL;
+            xrGetInstanceProcAddr(xr_instance,
+                                  "xrPerfSettingsSetPerformanceLevelEXT",
+                                  (PFN_xrVoidFunction*)(&pfnPerfSettingsSetPerformanceLevelEXT));
+
+            // Set the CPU performance profile
+            const Device::eCPUGPUPower cpu_power_target = Device::LVL_1_LOW_POWER;
+            pfnPerfSettingsSetPerformanceLevelEXT(xr_session,
+                                                  XR_PERF_SETTINGS_DOMAIN_CPU_EXT,
+                                                  (XrPerfSettingsLevelEXT) cpu_power_target);
+            // Set the GPU performance profile
+            const Device::eCPUGPUPower gpu_power_target = Device::LVL_2_HIGH_POWER;
+            pfnPerfSettingsSetPerformanceLevelEXT(xr_session,
+                                                  XR_PERF_SETTINGS_DOMAIN_GPU_EXT,
+                                                  (XrPerfSettingsLevelEXT) gpu_power_target);
+
+            // Set the main thread and the render thread as high priority threads
+            PFN_xrSetAndroidApplicationThreadKHR pfnSetAndroidApplicationThreadKHR = NULL;
+            xrGetInstanceProcAddr(xr_instance,
+                                  "xrSetAndroidApplicationThreadKHR",
+                                  (PFN_xrVoidFunction*)(&pfnSetAndroidApplicationThreadKHR));
+
+            assert(pfnSetAndroidApplicationThreadKHR(xr_session,
+                                                     XR_ANDROID_THREAD_TYPE_APPLICATION_MAIN_KHR,
+                                                     android_state->main_thread) == XR_SUCCESS);
+            assert(pfnSetAndroidApplicationThreadKHR(xr_session,
+                                                     XR_ANDROID_THREAD_TYPE_RENDERER_MAIN_KHR,
+                                                     android_state->render_thread) == XR_SUCCESS);
+
+            android_state->session_active = true;
+        } else if (state == XR_SESSION_STATE_STOPPING) {
+            xrEndSession(xr_session);
+            android_state->session_active = false;
+        }
+    }
+
+    void handle_events(Application::sAndroidState *app_state) {
+        XrEventDataBuffer xr_event_buffer = {};
+
+        for(;;) {
+            XrEventDataBaseHeader *base_header = (XrEventDataBaseHeader*) &xr_event_buffer;
+            base_header->type = XR_TYPE_EVENT_DATA_BUFFER;
+            base_header->next = NULL;
+
+            if (xrPollEvent(xr_instance,
+                            &xr_event_buffer) != XR_SUCCESS ) {
+                break;
+            }
+
+            const XrEventDataSessionStateChanged* session_state_changed_event = (XrEventDataSessionStateChanged*) base_header;
+
+            switch(base_header->type) {
+                case XR_TYPE_EVENT_DATA_PERF_SETTINGS_EXT: // Change on perf setting
+                    // TODO
+                    break;
+                case XR_TYPE_EVENT_DATA_DISPLAY_REFRESH_RATE_CHANGED_FB: // Change refresh rate
+                    // TODO
+                    break;
+                case XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING: // Change the reference space
+                    // TODO
+                    break;
+                case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED: // Session changed
+                    switch(session_state_changed_event->state) {
+                        case XR_SESSION_STATE_FOCUSED:
+                            app_state->focused = true;
+                            break;
+                        case XR_SESSION_STATE_VISIBLE:
+                            app_state->visible = true;
+                            break;
+                        case XR_SESSION_STATE_READY:
+                        case XR_SESSION_STATE_STOPPING:
+                            session_change_state(session_state_changed_event->state,
+                                                 app_state);
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                default: break;
+            }
+        }
+    }
+
+
+    void update(Application::sAndroidState *app_state,
+                double *delta_time,
                 sFrameTransforms *transforms) {
-        // NOTE: OpenXR does not use the concept of frame indices. Instead,
-        // XrWaitFrame returns the predicted display time.
+        // Handle XR events
+        handle_events(app_state);
+
+        // get the predicted frametimes from OpenXR
         XrFrameWaitInfo waitFrameInfo = {};
         waitFrameInfo.type = XR_TYPE_FRAME_WAIT_INFO;
         waitFrameInfo.next = NULL;

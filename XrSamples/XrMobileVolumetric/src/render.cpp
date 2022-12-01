@@ -195,7 +195,7 @@ void Render::sInstance::render_frame(const bool clean_frame = true) {
         const glm::mat4x4 vp_mat = pass.view_mat * pass.projection_mat;
 
         if (pass.target == FBO_TARGET) {
-            fbos[pass.fbo_id].bind();
+            FBO_bind(pass.fbo_id);
         } else {
             glBindFramebuffer(GL_FRAMEBUFFER, base_framebuffer);
         }
