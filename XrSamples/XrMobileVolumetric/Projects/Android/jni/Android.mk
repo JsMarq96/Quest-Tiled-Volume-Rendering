@@ -21,6 +21,10 @@ LOCAL_LDLIBS 			:= -llog -landroid -lGLESv3 -lEGL
 LOCAL_STATIC_LIBRARIES := android_native_app_glue
 LOCAL_SHARED_LIBRARIES := openxr_loader
 
+LOCAL_SANITIZE := alignment bounds null unreachable integer
+LOCAL_SANITIZE_DIAG := alignment bounds null unreachable integer
+SANITIZE_TARGET:=hwaddress
+
 include $(BUILD_SHARED_LIBRARY)
 
 $(call import-module,OpenXR/Projects/AndroidPrebuilt/jni)

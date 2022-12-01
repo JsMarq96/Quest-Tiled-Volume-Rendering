@@ -45,7 +45,7 @@ struct sAndroidState {
 };
 
 static void app_handle_cmd(struct android_app* app, int32_t cmd) {
-    sAndroidState *app_state = (sAndroidState*) app;
+    sAndroidState *app_state = (sAndroidState*) app->userData;
 
     switch (cmd) {
         // There is no APP_CMD_CREATE. The ANativeActivity creates the
