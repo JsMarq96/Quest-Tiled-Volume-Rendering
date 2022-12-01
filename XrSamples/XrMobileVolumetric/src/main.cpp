@@ -26,6 +26,7 @@ Copyright : Copyright (c) Facebook Technologies, LLC and its affiliates. All rig
 #include <android/native_window_jni.h>
 #include <android_native_app_glue.h>
 #include <assert.h>
+#include <android/log.h>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -151,7 +152,7 @@ void android_main(struct android_app* app) {
 
      XrFrameEndInfo frame_end_info = {
              .type = XR_TYPE_FRAME_END_INFO,
-             .next = NULL,
+             //.next = NULL,
              .displayTime = openxr_instance.frame_state.predictedDisplayTime,
              .environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE,
              .layerCount = 1,
@@ -224,14 +225,12 @@ void android_main(struct android_app* app) {
 
         frame_end_info.displayTime = openxr_instance.frame_state.predictedDisplayTime;
 
-        //assert(xrEndFrame(openxr_instance.xr_session,
-        //                  &frame_end_info) == XR_SUCCESS && "Error submiting frame");
-        int code = xrEndFrame(openxr_instance.xr_session,
-                              &frame_end_info);
-        code +=1, code -=1;
+        XrResult res = xrEndFrame(openxr_instance.xr_session,&frame_end_info);
+
+        __android_log_print(ANDROID_LOG_VERBOSE, "test", "%i", (int) res);
+        assert(res == XR_SUCCESS && "Error submiting frame");
+
     }
-
-
 
     // Cleanup TODO
 

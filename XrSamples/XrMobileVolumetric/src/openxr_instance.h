@@ -58,6 +58,7 @@ struct sOpenXRFramebuffer {
 
         XrSwapchainCreateInfo swapchain_create = {
                 .type = XR_TYPE_SWAPCHAIN_CREATE_INFO,
+                .next = NULL,
                 .usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_SAMPLED_BIT,
                 .format = color_format,
                 .sampleCount = 1,
@@ -69,9 +70,9 @@ struct sOpenXRFramebuffer {
         };
 
         // TODO create FOVeationg
-        xrCreateSwapchain(session,
+        assert(xrCreateSwapchain(session,
                           &swapchain_create,
-                          &swapchain_handle);
+                          &swapchain_handle) == XR_SUCCESS);
 
         // Generate the images for the swapchain
         // The number
@@ -86,12 +87,10 @@ struct sOpenXRFramebuffer {
             swapchain_images[i].type = XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_ES_KHR;
             swapchain_images[i].next = NULL;
         }
-        xrEnumerateSwapchainImages(swapchain_handle,
+        assert(xrEnumerateSwapchainImages(swapchain_handle,
                                    swapchain_length,
                                    &swapchain_length,
-                                   (XrSwapchainImageBaseHeader*) swapchain_images);
-
-        // Init textures and FBOs??
+                                   (XrSwapchainImageBaseHeader*) swapchain_images) == XR_SUCCESS);
     }
 };
 
@@ -104,6 +103,8 @@ struct sOpenXR_Instance {
     XrFrameState frame_state = {};
     sEglContext egl;
 
+    sOpenXRFramebuffer *curr_framebuffer;
+
     XrViewConfigurationView view_configs[MAX_EYE_NUMBER];
     XrViewConfigurationProperties view_config_prop;
     XrView eye_projections[MAX_EYE_NUMBER];
@@ -113,7 +114,7 @@ struct sOpenXR_Instance {
 
 
     void init(sOpenXRFramebuffer *framebuffer) {
-
+        curr_framebuffer = framebuffer;
         // Load extensions ==============================================================
         {
 
@@ -162,7 +163,7 @@ struct sOpenXR_Instance {
             };
             XrInstanceCreateInfo instance_info = {
                     .type = XR_TYPE_INSTANCE_CREATE_INFO,
-                    .next = NULL, // To fill
+                    .next = NULL,
                     .createFlags = 0,
                     .applicationInfo = {
                             .applicationName = APP_NAME,
@@ -199,7 +200,8 @@ struct sOpenXR_Instance {
                                   (PFN_xrVoidFunction*)(&pfnGetOpenGLESGraphicsRequirementsKHR));
 
             XrGraphicsRequirementsOpenGLESKHR graphics_requirements = {
-                    .type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR
+                    .type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR,
+                    .next = NULL
             };
             pfnGetOpenGLESGraphicsRequirementsKHR(xr_instance,
                                                   xr_sys_id,
@@ -290,7 +292,8 @@ struct sOpenXR_Instance {
         // Load Viewport configuration =========
         {
             view_config_prop = {
-                    .type = XR_TYPE_VIEW_CONFIGURATION_PROPERTIES
+                    .type = XR_TYPE_VIEW_CONFIGURATION_PROPERTIES,
+                    .next = NULL
             };
 
             xrGetViewConfigurationProperties(xr_instance,
@@ -356,6 +359,7 @@ struct sOpenXR_Instance {
                        0,
                        sizeof(XrView));
                 eye_projections[i].type = XR_TYPE_VIEW;
+                eye_projections[i].next = NULL;
             }
         }
 
@@ -525,20 +529,44 @@ struct sOpenXR_Instance {
                 .type = XR_TYPE_FRAME_BEGIN_INFO,
                 .next = NULL
         };
-        xrBeginFrame(xr_session,
-                     &begin_frame_desc);
+        assert(xrBeginFrame(xr_session,
+                     &begin_frame_desc) == XR_SUCCESS);
 
         // Get space tracking ===
-        XrSpaceLocation space_location = {.type = XR_TYPE_SPACE_LOCATION};
+        XrSpaceLocation space_location = {
+                .type = XR_TYPE_SPACE_LOCATION,
+                .next = NULL
+        };
         xrLocateSpace(xr_stage_space,
                       xr_local_space,
                       frame_state.predictedDisplayTime,
                       &space_location);
         XrPosef pose_stage_from_head = space_location.pose;
 
+        // Adquire & load swapchain images
+        XrSwapchainImageAcquireInfo swapchain_acq_info = {
+                .type = XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO,
+                .next = NULL
+        };
+
+        XrSwapchainImageWaitInfo swapchian_wait_info = {
+                .type = XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO,
+                .next = NULL,
+                .timeout = 1000000000
+        };
+        for(uint8_t i = 0; i < MAX_EYE_NUMBER; i++) {
+            xrAcquireSwapchainImage(curr_framebuffer->swapchain_handle,
+                                    &swapchain_acq_info,
+                                    &curr_framebuffer->swapchain_index);
+
+            // https://github.com/JsMarq96/Understanding-Tiled-Volume-Rendering/blob/ee294f2407da501274c6abd301fbfd8eec5575fc/XrSamples/XrMobileVolumetric/src/main.cpp linea 1187
+            // Esperando a adquisir las imagnees dle swapchain
+        }
+
         // Get Projection ===
         XrViewLocateInfo projection_info = {
                 .type = XR_TYPE_VIEW_LOCATE_INFO,
+                .next = NULL,
                 .viewConfigurationType = view_config_prop.viewConfigurationType,
                 .displayTime = frame_state.predictedDisplayTime,
                 .space = xr_head_space
