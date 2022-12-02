@@ -143,20 +143,6 @@ void android_main(struct android_app* app) {
     // Init renderer with the framebuffer data from OpenXR
     renderer.init(framebuffers);
 
-     // Composite layer
-     const XrCompositionLayerBaseHeader *layers = {
-             (const XrCompositionLayerBaseHeader* const) &openxr_instance.projection_layer
-     };
-
-     XrFrameEndInfo frame_end_info = {
-             .type = XR_TYPE_FRAME_END_INFO,
-             //.next = NULL,
-             .displayTime = openxr_instance.frame_state.predictedDisplayTime,
-             .environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE,
-             .layerCount = 1,
-             .layers = &layers,
-     };
-
      sFrameTransforms frame_transforms = {};
 
      const uint8_t clean_pass = renderer.add_render_pass(Render::SCREEN_TARGET,
@@ -194,6 +180,7 @@ void android_main(struct android_app* app) {
 
         }
         double delta_time = 0.0;
+        __android_log_print(ANDROID_LOG_VERBOSE, "test", "starting frame");
         // Update and get position & events from the OpenXR runtime
 
         openxr_instance.update(&app_state,
@@ -212,13 +199,7 @@ void android_main(struct android_app* app) {
                               view_mats,
                               projection_mats);
 
-        frame_end_info.displayTime = openxr_instance.frame_state.predictedDisplayTime;
-
-        XrResult res = xrEndFrame(openxr_instance.xr_session,&frame_end_info);
-
-        __android_log_print(ANDROID_LOG_VERBOSE, "test", "%i", (int) res);
-        assert(res == XR_SUCCESS && "Error submiting frame");
-
+        openxr_instance.submit_frame();
     }
 
     // Cleanup TODO

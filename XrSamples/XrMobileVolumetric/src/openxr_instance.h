@@ -130,6 +130,8 @@ struct sOpenXR_Instance {
 
     sOpenXRFramebuffer *curr_framebuffers;
 
+    XrPosef viewTransform[MAX_EYE_NUMBER];
+
     XrViewConfigurationView view_configs[MAX_EYE_NUMBER];
     XrViewConfigurationProperties view_config_prop;
     XrView eye_projections[MAX_EYE_NUMBER];
@@ -558,8 +560,9 @@ struct sOpenXR_Instance {
                 .type = XR_TYPE_FRAME_BEGIN_INFO,
                 .next = NULL
         };
-        assert(xrBeginFrame(xr_session,
-                     &begin_frame_desc) == XR_SUCCESS);
+        XrResult resu = xrBeginFrame(xr_session,
+                                     &begin_frame_desc);
+        assert(resu == XR_SUCCESS);
 
         // Get space tracking ===
         XrSpaceLocation space_location = {
@@ -597,8 +600,6 @@ struct sOpenXR_Instance {
         *delta_time = FromXrTime(frame_state.predictedDisplayTime);
 
         // Generate view projections
-        XrPosef viewTransform[2];
-
         for (int eye = 0; eye < MAX_EYE_NUMBER; eye++) {
             XrPosef xfHeadFromEye = eye_projections[eye].pose;
             XrPosef xfStageFromEye = XrPosef_Multiply(pose_stage_from_head,
@@ -618,6 +619,33 @@ struct sOpenXR_Instance {
                                   &transforms->view[eye],
                                   &transforms->projection[eye]);
         }
+    }
+
+    void submit_frame() {
+
+        for(uint16_t eye = 0; eye < MAX_EYE_NUMBER; eye++) {
+            projection_views[eye].pose = XrPosef_Inverse(viewTransform[eye]);
+            projection_views[eye].fov = eye_projections[eye].fov;
+        }
+        // Composite layer
+        const XrCompositionLayerBaseHeader *layers = {
+                (const XrCompositionLayerBaseHeader* const) &projection_layer
+        };
+
+        XrFrameEndInfo frame_end_info = {
+                .type = XR_TYPE_FRAME_END_INFO,
+                .next = NULL,
+                .displayTime = frame_state.predictedDisplayTime,
+                .environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE,
+                .layerCount = 1,
+                .layers = &layers,
+        };
+
+        XrResult res = xrEndFrame(xr_session,
+                                  &frame_end_info);
+
+        //__android_log_print(ANDROID_LOG_DEBUG, "test", "%i", (int) res);
+        assert(res == XR_SUCCESS && "Error submiting frame");
     }
 };
 
