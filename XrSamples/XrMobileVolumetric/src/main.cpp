@@ -95,8 +95,6 @@ sOpenXR_Instance openxr_instance = {};
 
 Render::sInstance renderer = {};
 
-void render_pipeline_config(const sFrameTransforms &transforms);
-
 /**
  * This is the main entry point of a native application that is using
  * android_native_app_glue.  It runs in its own thread, with its own
@@ -137,13 +135,13 @@ void android_main(struct android_app* app) {
          xrInitializeLoaderKHR((XrLoaderInitInfoBaseHeaderKHR*)&loaderInitializeInfoAndroid);
      }
 
-    sOpenXRFramebuffer framebuffer;
-    openxr_instance.init(&framebuffer);
+    sOpenXRFramebuffer framebuffers[2];
+    openxr_instance.init(framebuffers);
 
     app_state.main_thread = gettid();
 
     // Init renderer with the framebuffer data from OpenXR
-    renderer.init(framebuffer);
+    renderer.init(framebuffers);
 
      // Composite layer
      const XrCompositionLayerBaseHeader *layers = {
@@ -161,28 +159,17 @@ void android_main(struct android_app* app) {
 
      sFrameTransforms frame_transforms = {};
 
-     // Config the render pipeline
-     // One render pass for each eye :(
-     const uint8_t left_eye_pass = renderer.add_render_pass(Render::FBO_TARGET,
-                                                            renderer.framebuffer.fbos[0],
-                                                            glm::mat4(),
-                                                            glm::mat4());
-
-     const uint8_t right_eye_pass = renderer.add_render_pass(Render::FBO_TARGET,
-                                                             renderer.framebuffer.fbos[1],
-                                                             glm::mat4(),
-                                                             glm::mat4());
+     const uint8_t clean_pass = renderer.add_render_pass(Render::SCREEN_TARGET,
+                                                            0);
 
      // Set a different clear pass color to each eye
-     renderer.render_passes[left_eye_pass].rgba_clear_values[0] = 1.0f;
-     renderer.render_passes[left_eye_pass].rgba_clear_values[1] = 1.0f;
-     renderer.render_passes[left_eye_pass].rgba_clear_values[2] = 1.0f;
-     renderer.render_passes[left_eye_pass].rgba_clear_values[3] = 1.0f;
+     renderer.render_passes[clean_pass].rgba_clear_values[0] = 1.0f;
+     renderer.render_passes[clean_pass].rgba_clear_values[1] = 1.0f;
+     renderer.render_passes[clean_pass].rgba_clear_values[2] = 1.0f;
+     renderer.render_passes[clean_pass].rgba_clear_values[3] = 1.0f;
 
-     renderer.render_passes[right_eye_pass].rgba_clear_values[0] = 0.0f;
-     renderer.render_passes[right_eye_pass].rgba_clear_values[1] = 0.0f;
-     renderer.render_passes[right_eye_pass].rgba_clear_values[2] = 0.0f;
-     renderer.render_passes[right_eye_pass].rgba_clear_values[3] = 1.0f;
+     glm::mat4x4 view_mats[MAX_EYE_NUMBER];
+     glm::mat4x4 projection_mats[MAX_EYE_NUMBER];
 
     // Game Loop
     while (app->destroyRequested == 0) {
@@ -216,12 +203,14 @@ void android_main(struct android_app* app) {
         // Non-runtine Update
 
         // Render
-        renderer.render_passes[left_eye_pass].view_mat = glm::make_mat4(frame_transforms.view[0].m);
-        renderer.render_passes[left_eye_pass].projection_mat = glm::make_mat4(frame_transforms.projection[0].m);
-        renderer.render_passes[right_eye_pass].view_mat = glm::make_mat4(frame_transforms.view[1].m);
-        renderer.render_passes[right_eye_pass].projection_mat = glm::make_mat4(frame_transforms.projection[1].m);
+        view_mats[LEFT_EYE] = glm::make_mat4(frame_transforms.view[LEFT_EYE].m);
+        view_mats[RIGHT_EYE] = glm::make_mat4(frame_transforms.view[RIGHT_EYE].m);
+        projection_mats[LEFT_EYE] = glm::make_mat4(frame_transforms.projection[LEFT_EYE].m);
+        projection_mats[RIGHT_EYE] = glm::make_mat4(frame_transforms.projection[RIGHT_EYE].m);
 
-        renderer.render_frame(true);
+        renderer.render_frame(true,
+                              view_mats,
+                              projection_mats);
 
         frame_end_info.displayTime = openxr_instance.frame_state.predictedDisplayTime;
 
@@ -235,29 +224,4 @@ void android_main(struct android_app* app) {
     // Cleanup TODO
 
     (*app->activity->vm).DetachCurrentThread();
-}
-
-
-
-void render_pipeline_config(const sFrameTransforms &transforms) {
-    // One render pass for each eye :(
-    const uint8_t left_eye_pass = renderer.add_render_pass(Render::FBO_TARGET,
-                                                           renderer.framebuffer.fbos[0],
-                                                           glm::make_mat4(transforms.view[0].m),
-                                                           glm::make_mat4(transforms.view[0].m));
-
-    const uint8_t right_eye_pass = renderer.add_render_pass(Render::FBO_TARGET,
-                                                           renderer.framebuffer.fbos[1],
-                                                           glm::make_mat4(transforms.view[1].m),
-                                                           glm::make_mat4(transforms.view[1].m));
-
-    renderer.render_passes[left_eye_pass].rgba_clear_values[0] = 1.0f;
-    renderer.render_passes[left_eye_pass].rgba_clear_values[1] = 1.0f;
-    renderer.render_passes[left_eye_pass].rgba_clear_values[2] = 1.0f;
-    renderer.render_passes[left_eye_pass].rgba_clear_values[3] = 1.0f;
-
-    renderer.render_passes[right_eye_pass].rgba_clear_values[0] = 0.0f;
-    renderer.render_passes[right_eye_pass].rgba_clear_values[1] = 0.0f;
-    renderer.render_passes[right_eye_pass].rgba_clear_values[2] = 0.0f;
-    renderer.render_passes[right_eye_pass].rgba_clear_values[3] = 1.0f;
 }

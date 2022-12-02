@@ -61,50 +61,54 @@ void Render::sMeshBuffers::init_with_triangles(const float *geometry,
 }
 
 
-void Render::sInstance::init(const sOpenXRFramebuffer &openxr_framebuffer) {
+void Render::sInstance::init(sOpenXRFramebuffer *openxr_framebuffer) {
     // Create FBOs from the openxr_framebuffer's swapchain
-    for(uint32_t i = 0; i < openxr_framebuffer.swapchain_length; i++){
-        // Color texture
-        const uint32_t color_text = openxr_framebuffer.swapchain_images[i].image;
+    for(uint8_t eye = 0; eye < MAX_EYE_NUMBER; eye++) {
+        for(uint32_t i = 0; i < openxr_framebuffer[eye].swapchain_length; i++){
+            // Color texture
+            const uint32_t gl_color_text = openxr_framebuffer[eye].swapchain_images[i].image;
 
-        const uint8_t color_text_id = material_man.get_new_texture();
+            const uint8_t color_text_id = material_man.get_new_texture();
 
-        sTexture *curr_color_tex = &material_man.textures[color_text_id];
-        curr_color_tex->texture_id = color_text;
+            sTexture *curr_color_tex = &material_man.textures[color_text_id];
+            curr_color_tex->texture_id = gl_color_text;
 
-        curr_color_tex->config(GL_TEXTURE_2D,
-                               false);
+            curr_color_tex->config(GL_TEXTURE_2D,
+                                   false);
 
-        // Depth rbo
-        const uint8_t depth_rbo = rbo_count++;
-        RBO_init(depth_rbo,
-                 openxr_framebuffer.width,
-                 openxr_framebuffer.height,
-                 GL_DEPTH_COMPONENT24);
+            // Depth rbo
+            const uint8_t depth_rbo_id = rbo_count++;
+            RBO_init(depth_rbo_id,
+                     openxr_framebuffer[eye].width,
+                     openxr_framebuffer[eye].height,
+                     GL_DEPTH_COMPONENT24);
 
-        // Create FBO
-        const uint8_t eye_fbo = fbo_count++;
-        FBO_init(eye_fbo);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER,
-                          fbos[eye_fbo].id);
-        glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER,
-                                  GL_DEPTH_ATTACHMENT,
-                                  GL_RENDERBUFFER,
-                                  rbos[depth_rbo].id);
-        glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,
-                               GL_COLOR_ATTACHMENT0,
-                               GL_TEXTURE_2D,
-                               color_text,
-                               0);
+            // Create FBO
+            const uint8_t eye_fbo_id = fbo_count++;
+            FBO_init(eye_fbo_id);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER,
+                              fbos[eye_fbo_id].id);
+            glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER,
+                                      GL_DEPTH_ATTACHMENT,
+                                      GL_RENDERBUFFER,
+                                      rbos[depth_rbo_id].id);
+            glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,
+                                   GL_COLOR_ATTACHMENT0,
+                                   GL_TEXTURE_2D,
+                                   gl_color_text,
+                                   0);
 
-        assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER == GL_FRAMEBUFFER_COMPLETE) && "Failed FBO creation");
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER,
-                          0);
+            assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER == GL_FRAMEBUFFER_COMPLETE) && "Failed FBO creation");
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER,
+                              0);
 
-        framebuffer.color_textures[i] = color_text_id;
-        framebuffer.depth_rbos[i] = depth_rbo;
-        framebuffer.fbos[i] = eye_fbo;
+            framebuffer.color_textures[eye][i] = color_text_id;
+            framebuffer.depth_rbos[eye][i] = depth_rbo_id;
+            framebuffer.fbos[eye][i] = eye_fbo_id;
+        }
+        framebuffer.openxr_framebufffs = openxr_framebuffer;
     }
+
 
     // Set default render config
     current_state.depth_test_enabled = true;
@@ -187,72 +191,80 @@ void Render::sInstance::change_graphic_state(const sGLState &new_state) {
     }
 }
 
-void Render::sInstance::render_frame(const bool clean_frame = true) {
-    for(uint16_t j = 0; j < render_pass_size; j++) {
-        // Bind the render pass
-        sRenderPass &pass = render_passes[j];
+void Render::sInstance::render_frame(const bool clean_frame,
+                                     const glm::mat4x4 *view_mats,
+                                     const glm::mat4x4 *proj_mats) {
+    for(uint16_t eye = 0; eye < MAX_EYE_NUMBER; eye++) {
+        const glm::mat4x4 vp_mat = view_mats[eye] * view_mats[eye];
+        const glm::vec3 camera_pos = glm::vec3(view_mats[eye][0][3],
+                                               view_mats[eye][1][3],
+                                               view_mats[eye][2][3]);
+        for(uint16_t j = 0; j < render_pass_size; j++) {
+            sRenderPass &pass = render_passes[j];
 
-        const glm::mat4x4 vp_mat = pass.view_mat * pass.projection_mat;
-
-        if (pass.target == FBO_TARGET) {
-            FBO_bind(pass.fbo_id);
-        } else {
-            glBindFramebuffer(GL_FRAMEBUFFER, base_framebuffer);
-        }
-
-        // Clear the curent buffer
-        if (pass.clean_viewport && clean_frame) {
-            glClearColor(pass.rgba_clear_values[0],
-                         pass.rgba_clear_values[1],
-                         pass.rgba_clear_values[2],
-                         pass.rgba_clear_values[3]);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        }
-
-        // Run the render calls
-        glm::mat4x4 model, model_invert;
-        for(uint16_t i = 0; i < pass.draw_stack_size; i++) {
-            sDrawCall &draw_call = pass.draw_stack[i];
-
-            if (!draw_call.enabled) {
-                continue;
-            }
-
-            sMaterialInstance &material = material_man.materials[draw_call.material_id];
-            sShader &shader = material_man.shaders[material.shader_id];
-            sMeshBuffers &mesh = meshes[draw_call.mesh_id];
-
-            model = draw_call.transform.get_model();
-            model_invert = glm::inverse(model);
-
-            change_graphic_state(draw_call.call_state);
-
-            material_man.enable(draw_call.material_id);
-
-            glBindVertexArray(mesh.VAO);
-
-            if (draw_call.use_transform) {
-                shader.set_uniform_matrix4("u_model_mat",
-                                           model);
-                shader.set_uniform_matrix4("u_vp_mat",
-                                           vp_mat);
-                //shader.set_uniform_vector("u_camera_eye_local", cam_pos);
-                shader.set_uniform_vector("u_camera_eye_local",
-                                          glm::vec3(model_invert * glm::vec4(pass.camera_position, 1.0f)));
-            }
-
-            if (mesh.is_indexed) {
-                glDrawElements(mesh.primitive,
-                               mesh.primitive_count,
-                               GL_UNSIGNED_SHORT,
-                               0);
+            if (pass.target == FBO_TARGET) {
+                // Bind an FBO target
+                FBO_bind(pass.fbo_id);
             } else {
-                glDrawArrays(mesh.primitive,
-                             0,
-                             mesh.primitive_count);
+                // Bind an FBO target of the OpenXR swapchain
+                framebuffer.openxr_framebufffs[eye].adquire();
+                FBO_bind(framebuffer.fbos[eye][framebuffer.openxr_framebufffs->swapchain_index]);
             }
 
-            material_man.disable();
+            // Clear the curent buffer
+            if (pass.clean_viewport && clean_frame) {
+                glClearColor(pass.rgba_clear_values[0],
+                             pass.rgba_clear_values[1],
+                             pass.rgba_clear_values[2],
+                             pass.rgba_clear_values[3]);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            }
+
+            // Run the render calls
+            glm::mat4x4 model, model_invert;
+            for(uint16_t i = 0; i < pass.draw_stack_size; i++) {
+                sDrawCall &draw_call = pass.draw_stack[i];
+
+                if (!draw_call.enabled) {
+                    continue;
+                }
+
+                sMaterialInstance &material = material_man.materials[draw_call.material_id];
+                sShader &shader = material_man.shaders[material.shader_id];
+                sMeshBuffers &mesh = meshes[draw_call.mesh_id];
+
+                model = draw_call.transform.get_model();
+                model_invert = glm::inverse(model);
+
+                change_graphic_state(draw_call.call_state);
+
+                material_man.enable(draw_call.material_id);
+
+                glBindVertexArray(mesh.VAO);
+
+                if (draw_call.use_transform) {
+                    shader.set_uniform_matrix4("u_model_mat",
+                                               model);
+                    shader.set_uniform_matrix4("u_vp_mat",
+                                               vp_mat);
+                    //shader.set_uniform_vector("u_camera_eye_local", cam_pos);
+                    shader.set_uniform_vector("u_camera_eye_local",
+                                              glm::vec3(model_invert * glm::vec4(camera_pos, 1.0f)));
+                }
+
+                if (mesh.is_indexed) {
+                    glDrawElements(mesh.primitive,
+                                   mesh.primitive_count,
+                                   GL_UNSIGNED_SHORT,
+                                   0);
+                } else {
+                    glDrawArrays(mesh.primitive,
+                                 0,
+                                 mesh.primitive_count);
+                }
+
+                material_man.disable();
+            }
         }
     }
 }

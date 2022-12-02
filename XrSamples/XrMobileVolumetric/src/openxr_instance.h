@@ -92,6 +92,31 @@ struct sOpenXRFramebuffer {
                                    &swapchain_length,
                                    (XrSwapchainImageBaseHeader*) swapchain_images) == XR_SUCCESS);
     }
+
+    void adquire() {
+        // Adquire & load swapchain images
+        XrSwapchainImageAcquireInfo swapchain_acq_info = {
+                .type = XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO,
+                .next = NULL
+        };
+
+        XrSwapchainImageWaitInfo swapchain_wait_info = {
+                .type = XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO,
+                .next = NULL,
+                .timeout = 1000000000
+        };
+        xrAcquireSwapchainImage(swapchain_handle,
+                                &swapchain_acq_info,
+                                &swapchain_index);
+
+        XrResult res = xrWaitSwapchainImage(swapchain_handle,
+                                            &swapchain_wait_info);
+
+        while(res == XR_TIMEOUT_EXPIRED) {
+            res = xrWaitSwapchainImage(swapchain_handle,
+                                       &swapchain_wait_info);
+        }
+    }
 };
 
 struct sOpenXR_Instance {
@@ -103,7 +128,7 @@ struct sOpenXR_Instance {
     XrFrameState frame_state = {};
     sEglContext egl;
 
-    sOpenXRFramebuffer *curr_framebuffer;
+    sOpenXRFramebuffer *curr_framebuffers;
 
     XrViewConfigurationView view_configs[MAX_EYE_NUMBER];
     XrViewConfigurationProperties view_config_prop;
@@ -113,8 +138,8 @@ struct sOpenXR_Instance {
     XrCompositionLayerProjection projection_layer;
 
 
-    void init(sOpenXRFramebuffer *framebuffer) {
-        curr_framebuffer = framebuffer;
+    void init(sOpenXRFramebuffer *framebuffers) {
+        curr_framebuffers = framebuffers;
         // Load extensions ==============================================================
         {
 
@@ -366,10 +391,14 @@ struct sOpenXR_Instance {
         // CONFIG ACTION SPACES
 
         // Create SWAPCHAIN ===========================================================
-        framebuffer->init(xr_session,
-                          view_configs[0].maxImageRectWidth,
-                          view_configs[0].maxImageRectHeight,
-                          GL_SRGB8_ALPHA8);
+        framebuffers[0].init(xr_session,
+                             view_configs[0].maxImageRectWidth,
+                             view_configs[0].maxImageRectHeight,
+                             GL_SRGB8_ALPHA8);
+        framebuffers[1].init(xr_session,
+                             view_configs[0].maxImageRectWidth,
+                             view_configs[0].maxImageRectHeight,
+                             GL_SRGB8_ALPHA8);
 
         // TODO: Foveation
 
@@ -389,12 +418,12 @@ struct sOpenXR_Instance {
                         .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
                         .next = NULL,
                         .subImage = {
-                                .swapchain = framebuffer->swapchain_handle,
+                                .swapchain = framebuffers[i].swapchain_handle,
                                 .imageRect = {
                                         .offset = {0,0},
                                         .extent = {
-                                                .width = (int32_t) view_configs[i].recommendedImageRectWidth,
-                                                .height = (int32_t) view_configs[i].recommendedImageRectHeight
+                                                .width = (int32_t) view_configs[0].recommendedImageRectWidth,
+                                                .height = (int32_t) view_configs[0].recommendedImageRectHeight
                                         }
                                 },
                                 .imageArrayIndex = 0
@@ -542,26 +571,6 @@ struct sOpenXR_Instance {
                       frame_state.predictedDisplayTime,
                       &space_location);
         XrPosef pose_stage_from_head = space_location.pose;
-
-        // Adquire & load swapchain images
-        XrSwapchainImageAcquireInfo swapchain_acq_info = {
-                .type = XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO,
-                .next = NULL
-        };
-
-        XrSwapchainImageWaitInfo swapchian_wait_info = {
-                .type = XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO,
-                .next = NULL,
-                .timeout = 1000000000
-        };
-        for(uint8_t i = 0; i < MAX_EYE_NUMBER; i++) {
-            xrAcquireSwapchainImage(curr_framebuffer->swapchain_handle,
-                                    &swapchain_acq_info,
-                                    &curr_framebuffer->swapchain_index);
-
-            // https://github.com/JsMarq96/Understanding-Tiled-Volume-Rendering/blob/ee294f2407da501274c6abd301fbfd8eec5575fc/XrSamples/XrMobileVolumetric/src/main.cpp linea 1187
-            // Esperando a adquisir las imagnees dle swapchain
-        }
 
         // Get Projection ===
         XrViewLocateInfo projection_info = {

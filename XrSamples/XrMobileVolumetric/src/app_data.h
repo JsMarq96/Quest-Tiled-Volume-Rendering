@@ -12,5 +12,7 @@
 
 // CONSTANTS =====
 #define MAX_EYE_NUMBER 2
+#define LEFT_EYE 1
+#define RIGHT_EYE 0
 
 #endif //OCULUSROOT_APP_DATA_H

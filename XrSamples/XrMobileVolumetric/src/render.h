@@ -14,14 +14,12 @@
 #include "fbo.h"
 #include "rbo.h"
 #include "raw_shaders.h"
-
-#define SHADER_TOTAL_COUNT 10
+#define MAX_SWAPCHAIN_SIZE 5
 #define MESH_TOTAL_COUNT 20
-#define MATERIAL_TOTAL_COUNT 30
-#define FBO_TOTAL_COUNT 5
-#define RBO_TOTAL_COUNT 5
+#define FBO_TOTAL_COUNT 15
+#define RBO_TOTAL_COUNT 15
 #define DRAW_CALL_STACK_SIZE 30
-#define RENDER_PASS_COUNT 4
+#define RENDER_PASS_COUNT 5
 /**
  * A Wrapper for the rendering backend, for now with webgl
  * TODO:
@@ -79,9 +77,10 @@ namespace Render {
     };
 
     struct sFramebuffer {
-        uint8_t fbos[MAX_EYE_NUMBER] = {};
-        uint8_t color_textures[MAX_EYE_NUMBER] = {};
-        uint8_t depth_rbos[MAX_EYE_NUMBER] = {};
+        uint8_t fbos[MAX_EYE_NUMBER][MAX_SWAPCHAIN_SIZE] = {};
+        uint8_t color_textures[MAX_EYE_NUMBER][MAX_SWAPCHAIN_SIZE] = {};
+        uint8_t depth_rbos[MAX_EYE_NUMBER][MAX_SWAPCHAIN_SIZE] = {};
+        sOpenXRFramebuffer *openxr_framebufffs;
     };
 
 
@@ -115,10 +114,6 @@ namespace Render {
     };
 
     struct sRenderPass {
-        glm::mat4x4  view_mat;
-        glm::mat4x4  projection_mat;
-        glm::vec3    camera_position;
-
         bool clean_viewport = true;
         uint32_t clean_config;
         float rgba_clear_values[4] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -158,9 +153,11 @@ namespace Render {
         uint16_t render_pass_size = 0;
         sRenderPass render_passes[RENDER_PASS_COUNT];
 
-        void init(const sOpenXRFramebuffer &openxr_framebuffer);
+        void init(sOpenXRFramebuffer *openxr_framebuffer);
         void change_graphic_state(const sGLState &new_state);
-        void render_frame(const bool clean_frame);
+        void render_frame(const bool clean_frame,
+                          const glm::mat4x4 *view_mats,
+                          const glm::mat4x4 *proj_mats);
 
         // Inlines
         inline uint8_t add_drawcall_to_pass(const uint8_t pass_id,
@@ -197,25 +194,18 @@ namespace Render {
         }
 
         inline uint8_t add_render_pass(const eRenderPassTarget target,
-                                       const uint8_t fbo_id,
-                                       const glm::mat4x4 &view_mat,
-                                       const glm::mat4x4 &proj_mat) {
+                                       const uint8_t fbo_id) {
             render_passes[render_pass_size].target = target;
             render_passes[render_pass_size].fbo_id = fbo_id;
-            render_passes[render_pass_size].view_mat = view_mat;
-            render_passes[render_pass_size].projection_mat = proj_mat;
             return render_pass_size++;
         }
 
         inline uint8_t add_render_pass(const eRenderPassTarget target,
                                        const uint8_t fbo_id,
-                                       const uint8_t input_fbo,
-                                       const glm::mat4x4 &view_mat,
-                                       const glm::mat4x4 &proj_mat) {
+                                       const uint8_t input_fbo) {
             render_passes[render_pass_size].target = target;
             render_passes[render_pass_size].fbo_id = fbo_id;
-            render_passes[render_pass_size].view_mat = view_mat;
-            render_passes[render_pass_size].projection_mat = proj_mat;
+
 
             if (fbos[fbo_id].attachment_use == JUST_COLOR) {
                 render_passes[render_pass_size].use_color_attachment0 = true;
