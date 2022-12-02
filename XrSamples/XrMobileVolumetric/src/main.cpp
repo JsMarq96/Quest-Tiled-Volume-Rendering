@@ -37,6 +37,7 @@ Copyright : Copyright (c) Facebook Technologies, LLC and its affiliates. All rig
 #include "render.h"
 #include "application.h"
 
+
 static void app_handle_cmd(struct android_app* app, int32_t cmd) {
     Application::sAndroidState *app_state = (Application::sAndroidState*) app->userData;
 

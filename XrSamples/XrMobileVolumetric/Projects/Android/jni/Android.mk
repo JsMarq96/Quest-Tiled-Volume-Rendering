@@ -18,6 +18,8 @@ LOCAL_SRC_FILES := $(FILE_LIST:$(LOCAL_PATH)/%=%)
 # include default libraries
 LOCAL_LDLIBS 			:= -llog -landroid -lGLESv3 -lEGL
 
+LOCAL_CFLAGS += -UNDEBUG
+
 LOCAL_STATIC_LIBRARIES := android_native_app_glue
 LOCAL_SHARED_LIBRARIES := openxr_loader
 

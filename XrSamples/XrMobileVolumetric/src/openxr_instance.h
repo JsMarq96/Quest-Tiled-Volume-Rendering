@@ -16,11 +16,13 @@
 #include <cstring>
 #include <cassert>
 #include <GLES3/gl3.h>
+#include <android/log.h>
 
 #include "egl_context.h"
 #include "app_data.h"
 #include "application.h"
 #include "device.h"
+#include "check.h"
 
 struct sFrameTransforms {
     XrMatrix4x4f view[MAX_EYE_NUMBER];
@@ -416,6 +418,9 @@ struct sOpenXR_Instance {
             };
 
             for(uint16_t i = 0; i < MAX_EYE_NUMBER; i++) {
+                memset(&projection_views[i],
+                       0,
+                       sizeof(XrCompositionLayerProjectionView));
                 projection_views[i] = {
                         .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
                         .next = NULL,
@@ -428,7 +433,7 @@ struct sOpenXR_Instance {
                                                 .height = (int32_t) view_configs[0].recommendedImageRectHeight
                                         }
                                 },
-                                .imageArrayIndex = 0
+                                .imageArrayIndex = i
                         }
                 };
             }
@@ -622,8 +627,8 @@ struct sOpenXR_Instance {
     }
 
     void submit_frame() {
-
         for(uint16_t eye = 0; eye < MAX_EYE_NUMBER; eye++) {
+
             projection_views[eye].pose = XrPosef_Inverse(viewTransform[eye]);
             projection_views[eye].fov = eye_projections[eye].fov;
         }
