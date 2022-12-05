@@ -3,13 +3,6 @@
 #include "texture.h"
 #include <cstdint>
 
-#ifdef __EMSCRIPTEN__
-#include <GLES3/gl3.h>
-#include <emscripten/emscripten.h>
-#include <emscripten/html5_webgl.h>
-#include <emscripten/html5.h>
-#include <webgl/webgl2.h>
-#endif
 
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_float4x4.hpp"
@@ -264,6 +257,10 @@ void Render::sInstance::render_frame(const bool clean_frame,
                 }
 
                 material_man.disable();
+            }
+
+            if (pass.target != FBO_TARGET) {
+                framebuffer.openxr_framebufffs[eye].release();
             }
         }
     }

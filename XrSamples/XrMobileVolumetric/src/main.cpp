@@ -147,11 +147,11 @@ void android_main(struct android_app* app) {
      sFrameTransforms frame_transforms = {};
 
      const uint8_t clean_pass = renderer.add_render_pass(Render::SCREEN_TARGET,
-                                                            0);
+                                                         0);
 
      // Set a different clear pass color to each eye
      renderer.render_passes[clean_pass].rgba_clear_values[0] = 1.0f;
-     renderer.render_passes[clean_pass].rgba_clear_values[1] = 1.0f;
+     renderer.render_passes[clean_pass].rgba_clear_values[1] = 0.0f;
      renderer.render_passes[clean_pass].rgba_clear_values[2] = 1.0f;
      renderer.render_passes[clean_pass].rgba_clear_values[3] = 1.0f;
 
@@ -181,7 +181,7 @@ void android_main(struct android_app* app) {
 
         }
         double delta_time = 0.0;
-        __android_log_print(ANDROID_LOG_VERBOSE, "test", "starting frame");
+        __android_log_print(ANDROID_LOG_VERBOSE, "Openxr test", "starting frame");
         // Update and get position & events from the OpenXR runtime
 
         openxr_instance.update(&app_state,
@@ -201,6 +201,7 @@ void android_main(struct android_app* app) {
                               projection_mats);
 
         openxr_instance.submit_frame();
+        __android_log_print(ANDROID_LOG_VERBOSE, "Openxr test", "ending frame");
     }
 
     // Cleanup TODO
