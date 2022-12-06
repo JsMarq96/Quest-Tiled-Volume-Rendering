@@ -33,6 +33,8 @@ Copyright : Copyright (c) Facebook Technologies, LLC and its affiliates. All rig
 #include <android_native_app_glue.h>
 #include <assert.h>
 #include <android/log.h>
+#include <chrono>
+#include <thread>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -112,20 +114,114 @@ sOpenXR_Instance openxr_instance = {};
  // https://github.com/QCraft-CC/OpenXR-Quest-sample/tree/main/app/src/main/cpp/hello_xr
  // https://github.com/JsMarq96/Understanding-Tiled-Volume-Rendering/blob/ee294f2407da501274c6abd301fbfd8eec5575fc/XrSamples/XrMobileVolumetric/src/main.cpp
 void android_main(struct android_app* app) {
-     // Setup Activity-specific state
-     ALOGV("----------------------------------------------------------------");
-     ALOGV("android_app_entry()");
-     ALOGV("    android_main()");
+    JNIEnv* Env;
+    (*app->activity->vm).AttachCurrentThread( &Env, NULL);
 
-     // TODO: We should make this not required for OOPC apps.
-     ANativeActivity_setWindowFlags(app->activity, AWINDOW_FLAG_KEEP_SCREEN_ON, 0);
+    // Note that AttachCurrentThread will reset the thread name.
+    prctl(PR_SET_NAME, (long)"VRMain", 0, 0, 0);
 
-     JNIEnv* Env;
-     (*app->activity->vm).AttachCurrentThread(&Env, nullptr);
+     Application::sAndroidState app_state = {};
 
-     // Init
+    app->userData = &app_state;
+    app->onAppCmd = app_handle_cmd;
 
-     // Note that AttachCurrentThread will reset the thread name.
-     prctl(PR_SET_NAME, (long)"XrApp::Main", 0, 0, 0);
+    app_state.application_vm = app->activity->vm;
+    app_state.application_activity = app->activity->clazz; // ??
+
+     PFN_xrInitializeLoaderKHR xrInitializeLoaderKHR;
+     xrGetInstanceProcAddr(XR_NULL_HANDLE,
+                           "xrInitializeLoaderKHR",
+                           (PFN_xrVoidFunction*)&xrInitializeLoaderKHR);
+     if (xrInitializeLoaderKHR != NULL) {
+         XrLoaderInitInfoAndroidKHR loaderInitializeInfoAndroid;
+         memset(&loaderInitializeInfoAndroid,
+                0,
+                sizeof(loaderInitializeInfoAndroid));
+         loaderInitializeInfoAndroid.type = XR_TYPE_LOADER_INIT_INFO_ANDROID_KHR;
+         loaderInitializeInfoAndroid.next = NULL;
+         loaderInitializeInfoAndroid.applicationVM = app->activity->vm;
+         loaderInitializeInfoAndroid.applicationContext = app->activity->clazz;
+
+         xrInitializeLoaderKHR((XrLoaderInitInfoBaseHeaderKHR*)&loaderInitializeInfoAndroid);
+     }
+
+    sOpenXRFramebuffer framebuffers[2];
+    openxr_instance.init(framebuffers);
+
+    app_state.main_thread = gettid();
+
+    // Init renderer with the framebuffer data from OpenXR
+    renderer.init(framebuffers);
+
+     sFrameTransforms frame_transforms = {};
+
+     const uint8_t clean_pass = renderer.add_render_pass(Render::SCREEN_TARGET,
+                                                         0);
+
+     // Set a different clear pass color to each eye
+     renderer.render_passes[clean_pass].rgba_clear_values[0] = 1.0f;
+     renderer.render_passes[clean_pass].rgba_clear_values[1] = 0.0f;
+     renderer.render_passes[clean_pass].rgba_clear_values[2] = 1.0f;
+     renderer.render_passes[clean_pass].rgba_clear_values[3] = 1.0f;
+
+     glm::mat4x4 view_mats[MAX_EYE_NUMBER];
+     glm::mat4x4 projection_mats[MAX_EYE_NUMBER];
+
+    // Game Loop
+     while (app->destroyRequested == 0) {
+        // Read all pending android events
+        for(;;) {
+            int events = 0;
+            struct android_poll_source* source;
+            // If the timeout is zero, returns immediately without blocking.
+            // If the timeout is negative, waits indefinitely until an event appears.
+            const int timeoutMilliseconds =
+                    (!app_state.resumed && !app_state.session_active && app->destroyRequested == 0) ? -1 : 0;
+            if (ALooper_pollAll(timeoutMilliseconds, nullptr, &events, (void**)&source) < 0) {
+                break;
+            }
+
+            // Process the detected event
+            if (source != NULL) {
+                source->process(app,
+                                source);
+            }
+
+        }
+        openxr_instance.handle_events(&app_state);
+
+         __android_log_print(ANDROID_LOG_VERBOSE, "Openxr test", "test frame %i %i", app_state.resumed, app_state.session_active);
+         if (!app_state.session_active) {
+             // Throttle loop since xrWaitFrame won't be called.
+             std::this_thread::sleep_for(std::chrono::milliseconds(450));
+             continue;
+         }
+
+        double delta_time = 0.0;
+        __android_log_print(ANDROID_LOG_VERBOSE, "Openxr test", "starting frame");
+        // Update and get position & events from the OpenXR runtime
+
+        openxr_instance.update(&app_state,
+                               &delta_time,
+                               &frame_transforms);
+
+        // Non-runtine Update
+
+        // Render
+        view_mats[LEFT_EYE] = glm::make_mat4(frame_transforms.view[LEFT_EYE].m);
+        view_mats[RIGHT_EYE] = glm::make_mat4(frame_transforms.view[RIGHT_EYE].m);
+        projection_mats[LEFT_EYE] = glm::make_mat4(frame_transforms.projection[LEFT_EYE].m);
+        projection_mats[RIGHT_EYE] = glm::make_mat4(frame_transforms.projection[RIGHT_EYE].m);
+
+        renderer.render_frame(true,
+                              view_mats,
+                              projection_mats);
+
+        openxr_instance.submit_frame();
+        __android_log_print(ANDROID_LOG_VERBOSE, "Openxr test", "ending frame");
+    }
+
+    // Cleanup TODO
+
     (*app->activity->vm).DetachCurrentThread();
 }
