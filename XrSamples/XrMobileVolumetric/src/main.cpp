@@ -17,6 +17,12 @@ Copyright : Copyright (c) Facebook Technologies, LLC and its affiliates. All rig
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <android/window.h>
+#include <android/native_window_jni.h>
+#include <openxr/openxr.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <sys/prctl.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/prctl.h>
@@ -39,6 +45,8 @@ Copyright : Copyright (c) Facebook Technologies, LLC and its affiliates. All rig
 #include "render.h"
 #include "application.h"
 
+#define XR_USE_GRAPHICS_API_OPENGL_ES 1
+#define XR_USE_PLATFORM_ANDROID 1
 
 static void app_handle_cmd(struct android_app* app, int32_t cmd) {
     Application::sAndroidState *app_state = (Application::sAndroidState*) app->userData;
@@ -96,7 +104,6 @@ static void app_handle_cmd(struct android_app* app, int32_t cmd) {
 
 sOpenXR_Instance openxr_instance = {};
 
-Render::sInstance renderer = {};
 
 /**
  * This is the main entry point of a native application that is using
