@@ -48,6 +48,28 @@ struct sFrameTransforms {
     XrMatrix4x4f viewprojection[MAX_EYE_NUMBER];
 } __attribute__((packed));
 
+// ===========================
+// ACTIONS & INPUTS
+// ==========================
+enum eActionSide : int {
+    LEFT = 0,
+    RIGHT = 1,
+    COUNT = 2
+};
+
+struct sInputState {
+    XrActionSet actionSet{XR_NULL_HANDLE};
+    XrAction grabAction{XR_NULL_HANDLE};
+    XrAction poseAction{XR_NULL_HANDLE};
+    XrAction vibrateAction{XR_NULL_HANDLE};
+    XrAction quitAction{XR_NULL_HANDLE};
+
+    XrPath handSubactionPath[COUNT];
+    XrSpace handSpace[COUNT];
+    float handScale[COUNT] = {1.0f, 1.0f};
+    XrBool32 handActive[COUNT];
+};
+
 struct sOpenXRFramebuffer {
     uint32_t width = 0;
     uint32_t height = 0;
@@ -157,6 +179,8 @@ struct sOpenXR_Instance {
     XrFrameState frame_state = {};
     sEglContext egl;
 
+    XrEventDataBuffer xr_event_buffer = {};
+
     sOpenXRFramebuffer *curr_framebuffers;
 
     XrPosef viewTransform[MAX_EYE_NUMBER];
@@ -164,6 +188,8 @@ struct sOpenXR_Instance {
     XrViewConfigurationView view_configs[MAX_EYE_NUMBER];
     XrViewConfigurationProperties view_config_prop;
     XrView eye_projections[MAX_EYE_NUMBER];
+
+    sInputState input_state;
 
     XrCompositionLayerProjectionView projection_views[MAX_EYE_NUMBER];
     XrCompositionLayerProjection projection_layer;
@@ -266,7 +292,7 @@ struct sOpenXR_Instance {
         XrSessionCreateInfo session_info = {
                 .type = XR_TYPE_SESSION_CREATE_INFO,
                 .next = &graphics_binding,
-                .createFlags = 0,
+                //.createFlags = 0,
                 .systemId = xr_sys_id
         };
 
@@ -343,6 +369,196 @@ struct sOpenXR_Instance {
         return viewport_count;
     }
 
+    void _init_actions() {
+        // Create an action set.
+        {
+            XrActionSetCreateInfo actionSetInfo{XR_TYPE_ACTION_SET_CREATE_INFO};
+            strcpy(actionSetInfo.actionSetName, "gameplay");
+            strcpy(actionSetInfo.localizedActionSetName, "Gameplay");
+            actionSetInfo.priority = 0;
+            (xrCreateActionSet(xr_instance, &actionSetInfo, &input_state.actionSet));
+        }
+
+        // Get the XrPath for the left and right hands - we will use them as subaction paths.
+        (xrStringToPath(xr_instance, "/user/hand/left", &input_state.handSubactionPath[LEFT]));
+        (xrStringToPath(xr_instance, "/user/hand/right", &input_state.handSubactionPath[RIGHT]));
+
+        // Create actions.
+        {
+            // Create an input action for grabbing objects with the left and right hands.
+            XrActionCreateInfo actionInfo{XR_TYPE_ACTION_CREATE_INFO};
+            actionInfo.actionType = XR_ACTION_TYPE_FLOAT_INPUT;
+            strcpy(actionInfo.actionName, "grab_object");
+            strcpy(actionInfo.localizedActionName, "Grab Object");
+            actionInfo.countSubactionPaths = COUNT;
+            actionInfo.subactionPaths = input_state.handSubactionPath;
+            (xrCreateAction(input_state.actionSet, &actionInfo, &input_state.grabAction));
+
+            // Create an input action getting the left and right hand poses.
+            actionInfo.actionType = XR_ACTION_TYPE_POSE_INPUT;
+            strcpy(actionInfo.actionName, "hand_pose");
+            strcpy(actionInfo.localizedActionName, "Hand Pose");
+            actionInfo.countSubactionPaths = COUNT;
+            actionInfo.subactionPaths = input_state.handSubactionPath;
+            (xrCreateAction(input_state.actionSet, &actionInfo, &input_state.poseAction));
+
+            // Create output actions for vibrating the left and right controller.
+            actionInfo.actionType = XR_ACTION_TYPE_VIBRATION_OUTPUT;
+            strcpy(actionInfo.actionName, "vibrate_hand");
+            strcpy(actionInfo.localizedActionName, "Vibrate Hand");
+            actionInfo.countSubactionPaths = COUNT;
+            actionInfo.subactionPaths = input_state.handSubactionPath;
+            (xrCreateAction(input_state.actionSet, &actionInfo, &input_state.vibrateAction));
+
+            // Create input actions for quitting the session using the left and right controller.
+            // Since it doesn't matter which hand did this, we do not specify subaction paths for it.
+            // We will just suggest bindings for both hands, where possible.
+            actionInfo.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
+            strcpy(actionInfo.actionName, "quit_session");
+            strcpy(actionInfo.localizedActionName, "Quit Session");
+            actionInfo.countSubactionPaths = 0;
+            actionInfo.subactionPaths = nullptr;
+            (xrCreateAction(input_state.actionSet, &actionInfo, &input_state.quitAction));
+        }
+
+        XrPath selectPath[COUNT];
+        XrPath squeezeValuePath[COUNT];
+        XrPath squeezeForcePath[COUNT];
+        XrPath squeezeClickPath[COUNT];
+        XrPath posePath[COUNT];
+        XrPath hapticPath[COUNT];
+        XrPath menuClickPath[COUNT];
+        XrPath bClickPath[COUNT];
+        XrPath triggerValuePath[COUNT];
+        (xrStringToPath(xr_instance, "/user/hand/left/input/select/click", &selectPath[LEFT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/input/select/click", &selectPath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/left/input/squeeze/value", &squeezeValuePath[LEFT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/input/squeeze/value", &squeezeValuePath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/left/input/squeeze/force", &squeezeForcePath[LEFT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/input/squeeze/force", &squeezeForcePath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/left/input/squeeze/click", &squeezeClickPath[LEFT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/input/squeeze/click", &squeezeClickPath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/left/input/grip/pose", &posePath[LEFT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/input/grip/pose", &posePath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/left/output/haptic", &hapticPath[LEFT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/output/haptic", &hapticPath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/left/input/menu/click", &menuClickPath[LEFT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/input/menu/click", &menuClickPath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/left/input/b/click", &bClickPath[LEFT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/input/b/click", &bClickPath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/left/input/trigger/value", &triggerValuePath[LEFT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/input/trigger/value", &triggerValuePath[RIGHT]));
+        // Suggest bindings for KHR Simple.
+        {
+            XrPath khrSimpleInteractionProfilePath;
+            (
+                    xrStringToPath(xr_instance, "/interaction_profiles/khr/simple_controller", &khrSimpleInteractionProfilePath));
+            XrActionSuggestedBinding bindings[8] = {// Fall back to a click input for the grab action.
+                    {input_state.grabAction, selectPath[LEFT]},
+                    {input_state.grabAction, selectPath[RIGHT]},
+                    {input_state.poseAction, posePath[LEFT]},
+                    {input_state.poseAction, posePath[RIGHT]},
+                    {input_state.quitAction, menuClickPath[LEFT]},
+                    {input_state.quitAction, menuClickPath[RIGHT]},
+                    {input_state.vibrateAction, hapticPath[LEFT]},
+                    {input_state.vibrateAction, hapticPath[RIGHT]}};
+            XrInteractionProfileSuggestedBinding suggestedBindings{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
+            suggestedBindings.interactionProfile = khrSimpleInteractionProfilePath;
+            suggestedBindings.suggestedBindings = bindings;
+            suggestedBindings.countSuggestedBindings = 8;
+            (xrSuggestInteractionProfileBindings(xr_instance, &suggestedBindings));
+        }
+        // Suggest bindings for the Oculus Touch.
+        {
+            XrPath oculusTouchInteractionProfilePath;
+            (
+                    xrStringToPath(xr_instance, "/interaction_profiles/oculus/touch_controller", &oculusTouchInteractionProfilePath));
+            XrActionSuggestedBinding bindings[7] = {{input_state.grabAction, squeezeValuePath[LEFT]},
+                                                    {input_state.grabAction, squeezeValuePath[RIGHT]},
+                                                    {input_state.poseAction, posePath[LEFT]},
+                                                    {input_state.poseAction, posePath[RIGHT]},
+                                                    {input_state.quitAction, menuClickPath[LEFT]},
+                                                    {input_state.vibrateAction, hapticPath[LEFT]},
+                                                    {input_state.vibrateAction, hapticPath[RIGHT]}};
+            XrInteractionProfileSuggestedBinding suggestedBindings{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
+            suggestedBindings.interactionProfile = oculusTouchInteractionProfilePath;
+            suggestedBindings.suggestedBindings = bindings;
+            suggestedBindings.countSuggestedBindings = 7;
+            (xrSuggestInteractionProfileBindings(xr_instance, &suggestedBindings));
+        }
+        // Suggest bindings for the Vive Controller.
+        /*{
+            XrPath viveControllerInteractionProfilePath;
+            (
+                    xrStringToPath(xr_instance, "/interaction_profiles/htc/vive_controller", &viveControllerInteractionProfilePath));
+            std::vector<XrActionSuggestedBinding> bindings{{{input_state.grabAction, triggerValuePath[LEFT]},
+                                                            {input_state.grabAction, triggerValuePath[RIGHT]},
+                                                            {input_state.poseAction, posePath[LEFT]},
+                                                            {input_state.poseAction, posePath[RIGHT]},
+                                                            {input_state.quitAction, menuClickPath[LEFT]},
+                                                            {input_state.quitAction, menuClickPath[RIGHT]},
+                                                            {input_state.vibrateAction, hapticPath[LEFT]},
+                                                            {input_state.vibrateAction, hapticPath[RIGHT]}}};
+            XrInteractionProfileSuggestedBinding suggestedBindings{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
+            suggestedBindings.interactionProfile = viveControllerInteractionProfilePath;
+            suggestedBindings.suggestedBindings = bindings.data();
+            suggestedBindings.countSuggestedBindings = (uint32_t)bindings.size();
+            (xrSuggestInteractionProfileBindings(xr_instance, &suggestedBindings));
+        }
+
+        // Suggest bindings for the Valve Index Controller.
+        {
+            XrPath indexControllerInteractionProfilePath;
+            (
+                    xrStringToPath(xr_instance, "/interaction_profiles/valve/index_controller", &indexControllerInteractionProfilePath));
+            std::vector<XrActionSuggestedBinding> bindings{{{input_state.grabAction, squeezeForcePath[LEFT]},
+                                                            {input_state.grabAction, squeezeForcePath[RIGHT]},
+                                                            {input_state.poseAction, posePath[LEFT]},
+                                                            {input_state.poseAction, posePath[RIGHT]},
+                                                            {input_state.quitAction, bClickPath[LEFT]},
+                                                            {input_state.quitAction, bClickPath[RIGHT]},
+                                                            {input_state.vibrateAction, hapticPath[LEFT]},
+                                                            {input_state.vibrateAction, hapticPath[RIGHT]}}};
+            XrInteractionProfileSuggestedBinding suggestedBindings{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
+            suggestedBindings.interactionProfile = indexControllerInteractionProfilePath;
+            suggestedBindings.suggestedBindings = bindings.data();
+            suggestedBindings.countSuggestedBindings = (uint32_t)bindings.size();
+            (xrSuggestInteractionProfileBindings(xr_instance, &suggestedBindings));
+        }
+
+        // Suggest bindings for the Microsoft Mixed Reality Motion Controller.
+        {
+            XrPath microsoftMixedRealityInteractionProfilePath;
+            (xrStringToPath(xr_instance, "/interaction_profiles/microsoft/motion_controller",
+                                       &microsoftMixedRealityInteractionProfilePath));
+            std::vector<XrActionSuggestedBinding> bindings{{{input_state.grabAction, squeezeClickPath[LEFT]},
+                                                            {input_state.grabAction, squeezeClickPath[RIGHT]},
+                                                            {input_state.poseAction, posePath[LEFT]},
+                                                            {input_state.poseAction, posePath[RIGHT]},
+                                                            {input_state.quitAction, menuClickPath[LEFT]},
+                                                            {input_state.quitAction, menuClickPath[RIGHT]},
+                                                            {input_state.vibrateAction, hapticPath[LEFT]},
+                                                            {input_state.vibrateAction, hapticPath[RIGHT]}}};
+            XrInteractionProfileSuggestedBinding suggestedBindings{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
+            suggestedBindings.interactionProfile = microsoftMixedRealityInteractionProfilePath;
+            suggestedBindings.suggestedBindings = bindings.data();
+            suggestedBindings.countSuggestedBindings = (uint32_t)bindings.size();
+            (xrSuggestInteractionProfileBindings(xr_instance, &suggestedBindings));
+        }*/
+        XrActionSpaceCreateInfo actionSpaceInfo{XR_TYPE_ACTION_SPACE_CREATE_INFO};
+        actionSpaceInfo.action = input_state.poseAction;
+        actionSpaceInfo.poseInActionSpace.orientation.w = 1.f;
+        actionSpaceInfo.subactionPath = input_state.handSubactionPath[LEFT];
+        (xrCreateActionSpace(xr_session, &actionSpaceInfo, &input_state.handSpace[LEFT]));
+        actionSpaceInfo.subactionPath = input_state.handSubactionPath[RIGHT];
+        (xrCreateActionSpace(xr_session, &actionSpaceInfo, &input_state.handSpace[RIGHT]));
+
+        XrSessionActionSetsAttachInfo attachInfo{XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO};
+        attachInfo.countActionSets = 1;
+        attachInfo.actionSets = &input_state.actionSet;
+        (xrAttachSessionActionSets(xr_session, &attachInfo));
+    }
+
     void _load_reference_spaces() {
         uint32_t output_spaces_count = 0;
         OXR(xrEnumerateReferenceSpaces(xr_session,
@@ -413,14 +629,18 @@ struct sOpenXR_Instance {
 
         // Create the OpenXR session ===================================================
         _create_session();
-
         // Load ViewPort data & config  ================================================
-        _load_viewport_config();
+
 
         // TODO Color space
         // TODO Refresh rate
 
+        _init_actions();
+
+        _load_viewport_config();
+
         _load_reference_spaces();
+
 
         // CONFIG VIEWS ================================================================
         {
@@ -449,8 +669,8 @@ struct sOpenXR_Instance {
     }
 
     void session_change_state(const XrSessionState &state,
-                              Application::sAndroidState *android_state) const {
-        ALOGE("OpenXR session:%i\n", state);
+                              Application::sAndroidState *android_state) {
+        ALOGE("OpenXR session:%i wanted %i\n", state, XR_SESSION_STATE_READY);
         if (state == XR_SESSION_STATE_READY) {
             // Start the session!
             XrSessionBeginInfo session_start_info = {
@@ -463,7 +683,6 @@ struct sOpenXR_Instance {
             OXR(result = xrBeginSession(xr_session,
                                &session_start_info));
             android_state->session_active = true;
-            return;
 
             PFN_xrPerfSettingsSetPerformanceLevelEXT pfnPerfSettingsSetPerformanceLevelEXT = NULL;
             OXR(xrGetInstanceProcAddr(xr_instance,
@@ -500,20 +719,20 @@ struct sOpenXR_Instance {
     }
 
     void handle_events(Application::sAndroidState *app_state) {
-        XrEventDataBuffer xr_event_buffer = {};
-
         for(;;) {
             XrEventDataBaseHeader *base_header = (XrEventDataBaseHeader*) &xr_event_buffer;
-            base_header->type = XR_TYPE_EVENT_DATA_BUFFER;
-            base_header->next = NULL;
+            *base_header = {XR_TYPE_EVENT_DATA_BUFFER};
 
-            if (xrPollEvent(xr_instance,
-                            &xr_event_buffer) != XR_SUCCESS ) {
+            XrResult res = xrPollEvent(xr_instance,
+                                       &xr_event_buffer);
+
+            if (res != XR_SUCCESS) {
                 break;
             }
 
             const XrEventDataSessionStateChanged* session_state_changed_event = (XrEventDataSessionStateChanged*) base_header;
 
+            ALOGE("OpenXR event type:%i, but we want %i\n", base_header->type, XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED);
             switch(base_header->type) {
                 case XR_TYPE_EVENT_DATA_PERF_SETTINGS_EXT: // Change on perf setting
                     // TODO
@@ -552,7 +771,7 @@ struct sOpenXR_Instance {
                 double *delta_time,
                 sFrameTransforms *transforms) {
         // Handle XR events
-        handle_events(app_state);
+        //handle_events(app_state);
 
         // get the predicted frametimes from OpenXR
         XrFrameWaitInfo waitFrameInfo = {};

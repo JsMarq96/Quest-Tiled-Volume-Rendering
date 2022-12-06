@@ -27,6 +27,8 @@ Copyright : Copyright (c) Facebook Technologies, LLC and its affiliates. All rig
 #include <android_native_app_glue.h>
 #include <assert.h>
 #include <android/log.h>
+#include <chrono>
+#include <thread>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -159,17 +161,16 @@ void android_main(struct android_app* app) {
      glm::mat4x4 projection_mats[MAX_EYE_NUMBER];
 
     // Game Loop
-    while (app->destroyRequested == 0) {
+     while (app->destroyRequested == 0) {
         // Read all pending android events
         for(;;) {
             int events = 0;
-            struct android_poll_source* source = NULL;
-            // Check for system events with the androind_native_app_glue, based on the
-            // state of the app
-            if (ALooper_pollAll(app->destroyRequested  ? 0 : -1,
-                                NULL,
-                                &events,
-                                (void**)&source) < 0) {
+            struct android_poll_source* source;
+            // If the timeout is zero, returns immediately without blocking.
+            // If the timeout is negative, waits indefinitely until an event appears.
+            const int timeoutMilliseconds =
+                    (!app_state.resumed && !app_state.session_active && app->destroyRequested == 0) ? -1 : 0;
+            if (ALooper_pollAll(timeoutMilliseconds, nullptr, &events, (void**)&source) < 0) {
                 break;
             }
 
@@ -180,6 +181,15 @@ void android_main(struct android_app* app) {
             }
 
         }
+        openxr_instance.handle_events(&app_state);
+
+         __android_log_print(ANDROID_LOG_VERBOSE, "Openxr test", "test frame %i %i", app_state.resumed, app_state.session_active);
+         if (!app_state.session_active) {
+             // Throttle loop since xrWaitFrame won't be called.
+             std::this_thread::sleep_for(std::chrono::milliseconds(450));
+             continue;
+         }
+
         double delta_time = 0.0;
         __android_log_print(ANDROID_LOG_VERBOSE, "Openxr test", "starting frame");
         // Update and get position & events from the OpenXR runtime
