@@ -599,7 +599,7 @@ struct sOpenXR_Instance {
                                    &xr_local_space));
 
         space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE;
-        //space_info.poseInReferenceSpace.position.y = 0.0f; // ?
+        space_info.poseInReferenceSpace.position.y = 0.0f; // ?
         OXR(xrCreateReferenceSpace(xr_session,
                                    &space_info,
                                    &xr_stage_space));
@@ -803,8 +803,8 @@ struct sOpenXR_Instance {
                 .type = XR_TYPE_SPACE_LOCATION,
                 .next = NULL
         };
-        OXR(xrLocateSpace(xr_stage_space,
-                          xr_local_space,
+        OXR(xrLocateSpace(xr_head_space,
+                          xr_stage_space,
                           frame_state.predictedDisplayTime,
                           &space_location));
         XrPosef pose_stage_from_head = space_location.pose;
@@ -856,10 +856,48 @@ struct sOpenXR_Instance {
     }
 
     void submit_frame() {
-        // Realese the swapchain i
+        // Generate layers
+        layers_count = 0;
+        // Projection layer
+        projection_layer = {
+                .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION,
+                .next = NULL,
+                .layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT | XR_COMPOSITION_LAYER_CORRECT_CHROMATIC_ABERRATION_BIT,
+                .space =  xr_stage_space,
+                .viewCount = MAX_EYE_NUMBER,
+                .views = projection_views
+        };
 
+        // Config projection layers
+        for(uint16_t i = 0; i < MAX_EYE_NUMBER; i++) {
+            memset(&projection_views[i],
+                   0,
+                   sizeof(XrCompositionLayerProjectionView));
+            memset(&projection_views[i].subImage,
+                   0,
+                   sizeof(XrSwapchainSubImage));
 
-        // Composite layer
+            projection_views[i] = {
+                    .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
+                    .next = NULL,
+                    .pose = XrPosef_Inverse(viewTransform[i]),
+                    .fov = eye_projections[i].fov,
+                    .subImage = {
+                            .swapchain = curr_framebuffers[i].swapchain_handle,
+                            .imageRect = {
+                                    .offset = {0,0},
+                                    .extent = {
+                                            .width = (int32_t) curr_framebuffers[i].width,
+                                            .height = (int32_t) curr_framebuffers[i].height
+                                    }
+                            },
+                            .imageArrayIndex = 0
+                    }
+            };
+        }
+
+        // Add layers to the frame´s dispatch list
+        layers[layers_count++] =  (const XrCompositionLayerBaseHeader*) &projection_layer;
 
         XrFrameEndInfo frame_end_info = {
                 .type = XR_TYPE_FRAME_END_INFO,
@@ -870,45 +908,6 @@ struct sOpenXR_Instance {
                 .layers = layers,
         };
 
-        {
-            projection_layer = {
-                    .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION,
-                    .next = NULL,
-                    .layerFlags = 0,//XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT | XR_COMPOSITION_LAYER_CORRECT_CHROMATIC_ABERRATION_BIT,
-                    .space =  xr_stage_space,
-                    .viewCount = MAX_EYE_NUMBER,
-                    .views = projection_views
-            };
-
-            for(uint16_t i = 0; i < MAX_EYE_NUMBER; i++) {
-                memset(&projection_views[i],
-                       0,
-                       sizeof(XrCompositionLayerProjectionView));
-                memset(&projection_views[i].subImage,
-                       0,
-                       sizeof(XrSwapchainSubImage));
-
-                projection_views[i] = {
-                        .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
-                        .next = NULL,
-                        .pose = XrPosef_Inverse(viewTransform[i]),
-                        .fov = eye_projections[i].fov,
-                        .subImage = {
-                                .swapchain = curr_framebuffers[i].swapchain_handle,
-                                .imageRect = {
-                                        .offset = {0,0},
-                                        .extent = {
-                                                .width = (int32_t) curr_framebuffers[i].width,
-                                                .height = (int32_t) curr_framebuffers[i].height
-                                        }
-                                },
-                                .imageArrayIndex = 0
-                        }
-                };
-            }
-
-            layers[layers_count++] =  (const XrCompositionLayerBaseHeader*) &projection_layer;
-        }
 
         global_xr_instance = &xr_instance;
         XrResult result = xrEndFrame(xr_session,

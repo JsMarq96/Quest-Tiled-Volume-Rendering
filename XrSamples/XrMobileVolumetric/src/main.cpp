@@ -154,7 +154,7 @@ void android_main(struct android_app* app) {
     // Set a different clear pass color to each eye
     renderer.render_passes[clean_pass].rgba_clear_values[0] = 1.0f;
     renderer.render_passes[clean_pass].rgba_clear_values[1] = 0.0f;
-    renderer.render_passes[clean_pass].rgba_clear_values[2] = 1.0f;
+    renderer.render_passes[clean_pass].rgba_clear_values[2] = 0.0f;
     renderer.render_passes[clean_pass].rgba_clear_values[3] = 1.0f;
 
     glm::mat4x4 view_mats[MAX_EYE_NUMBER];
