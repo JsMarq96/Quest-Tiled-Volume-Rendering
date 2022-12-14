@@ -21,7 +21,6 @@
 
 #include "egl_context.h"
 #include "app_data.h"
-#include "application.h"
 #include "device.h"
 
 static XrInstance *global_xr_instance;
@@ -46,7 +45,7 @@ struct sFrameTransforms {
     XrMatrix4x4f view[MAX_EYE_NUMBER];
     XrMatrix4x4f projection[MAX_EYE_NUMBER];
     XrMatrix4x4f viewprojection[MAX_EYE_NUMBER];
-} __attribute__((packed));
+};
 
 // ===========================
 // ACTIONS & INPUTS

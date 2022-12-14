@@ -37,6 +37,7 @@ Copyright : Copyright (c) Facebook Technologies, LLC and its affiliates. All rig
 #include <glm/gtc/type_ptr.hpp>
 
 #include "render.h"
+#include "app_data.h"
 #include "application.h"
 
 
@@ -148,14 +149,7 @@ void android_main(struct android_app* app) {
 
     sFrameTransforms frame_transforms = {};
 
-    const uint8_t clean_pass = renderer.add_render_pass(Render::SCREEN_TARGET,
-                                                        0);
-
-    // Set a different clear pass color to each eye
-    renderer.render_passes[clean_pass].rgba_clear_values[0] = 1.0f;
-    renderer.render_passes[clean_pass].rgba_clear_values[1] = 0.0f;
-    renderer.render_passes[clean_pass].rgba_clear_values[2] = 0.0f;
-    renderer.render_passes[clean_pass].rgba_clear_values[3] = 1.0f;
+    ApplicationLogic::config_render_pipeline(renderer);
 
     glm::mat4x4 view_mats[MAX_EYE_NUMBER];
     glm::mat4x4 projection_mats[MAX_EYE_NUMBER];
@@ -198,7 +192,9 @@ void android_main(struct android_app* app) {
                                &delta_time,
                                &frame_transforms);
 
-        // Non-runtine Update
+        // Non-XR runtine Update
+        ApplicationLogic::update_logic(delta_time,
+                                       frame_transforms);
 
         // Render
         view_mats[LEFT_EYE] = glm::make_mat4(frame_transforms.view[LEFT_EYE].m);

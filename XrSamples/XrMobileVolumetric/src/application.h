@@ -2,34 +2,17 @@
 #define APPLICATION_H_
 
 #include <cstdint>
-#include <glm/glm.hpp>
-#include "transform.h"
 
-#define TRANSFORMS_TOTAL_COUNT 20
+#include "openxr_instance.h"
+#include "render.h"
 
+namespace ApplicationLogic {
 
-namespace Application {
-    enum eControllers : uint8_t {
-        LEFT_HAND = 0,
-        RIGHT_HAND,
-        TOTAL_CONTROLLER_COUNT
-    };
+    void config_render_pipeline(Render::sInstance &renderer);
 
-    struct sAndroidState {
-        ANativeWindow *native_window = NULL;
-        bool resumed = false;
-        bool visible = false;
-        bool focused = false;
+    void update_logic(const double delta_time,
+                      const sFrameTransforms &frame_transforms);
+};
 
-        bool session_active = false;
-
-        int main_thread = 0;
-        int render_thread = 0;
-
-        void *application_vm = NULL;
-        void *application_activity = NULL;
-
-    };
-}
 
 #endif // APPLICATION_H_
