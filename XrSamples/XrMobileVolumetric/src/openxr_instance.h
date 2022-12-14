@@ -845,12 +845,12 @@ struct sOpenXR_Instance {
             XrMatrix4x4f_CreateProjectionFov(&transforms->projection[eye],
                                              GRAPHICS_OPENGL_ES,
                                              fov,
-                                             0.1f,
-                                             0.0f);
+                                             0.01f,
+                                             1000.0f);
 
             XrMatrix4x4f_Multiply(&transforms->viewprojection[eye],
-                                  &transforms->view[eye],
-                                  &transforms->projection[eye]);
+                                  &transforms->projection[eye],
+                                  &transforms->view[eye]);
         }
     }
 
@@ -909,13 +909,8 @@ struct sOpenXR_Instance {
 
 
         global_xr_instance = &xr_instance;
-        XrResult result = xrEndFrame(xr_session,
-                                     &frame_end_info);
-        char errorBuffer[XR_MAX_RESULT_STRING_SIZE];
-        xrResultToString(*global_xr_instance,
-                         result,
-                         errorBuffer);
-        ALOGE("OpenXR errorsss: %s: %s\n", "OpenXr test", errorBuffer);
+        OXR(xrEndFrame(xr_session,
+                       &frame_end_info));
     }
 };
 

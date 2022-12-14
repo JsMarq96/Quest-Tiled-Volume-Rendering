@@ -33,18 +33,20 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
                                                          0);
 
     // Set clear color
-    renderer.render_passes[render_pass].rgba_clear_values[0] = 1.0f;
+    renderer.render_passes[render_pass].rgba_clear_values[0] = 0.0f;
     renderer.render_passes[render_pass].rgba_clear_values[1] = 0.0f;
-    renderer.render_passes[render_pass].rgba_clear_values[2] = 0.0f;
+    renderer.render_passes[render_pass].rgba_clear_values[2] = 1.0f;
     renderer.render_passes[render_pass].rgba_clear_values[3] = 1.0f;
 
     renderer.add_drawcall_to_pass(render_pass,
                                   { .mesh_id = cube_mesh,
                                     .material_id = plaincolor_material,
                                     .use_transform = true,
-                                    .transform = { .position = {},
-                                                   .scale = {} },
-                                    .call_state = {},
+                                    .transform = {
+                                          .position = {0.0f, 0.0f, 0.0f},
+                                          .scale = {1.0f, 1.0f, 1.0f}
+                                          },
+                                    .call_state = { .culling_enabled = false },
                                     .enabled = true });
 }
 

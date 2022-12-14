@@ -245,6 +245,7 @@ void Render::sInstance::render_frame(const bool clean_frame,
                                               glm::vec3(model_invert * glm::vec4(camera_pos, 1.0f)));
                 }
 
+
                 if (mesh.is_indexed) {
                     glDrawElements(mesh.primitive,
                                    mesh.primitive_count,

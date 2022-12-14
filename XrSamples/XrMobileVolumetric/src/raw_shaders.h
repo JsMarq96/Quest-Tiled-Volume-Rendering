@@ -223,7 +223,7 @@ in vec2 v_screen_position;
 out vec4 o_frag_color;
 
 void main() {
-    o_frag_color = vec4(0.50, 0.5, 0.50, 1.0);
+    o_frag_color = vec4(1.0, 0.0, 0.0, 1.0);
 }
 )";
 
