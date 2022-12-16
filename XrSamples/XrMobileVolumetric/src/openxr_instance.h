@@ -846,7 +846,7 @@ struct sOpenXR_Instance {
                                              GRAPHICS_OPENGL_ES,
                                              fov,
                                              0.01f,
-                                             1000.0f);
+                                             0.0f);
 
             XrMatrix4x4f_Multiply(&transforms->viewprojection[eye],
                                   &transforms->projection[eye],

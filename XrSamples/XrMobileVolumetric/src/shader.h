@@ -42,6 +42,7 @@ struct sShader {
     void set_uniform_vector(const char* name, const glm::vec3 &value) const;
     void set_uniform_matrix3(const char* name, const glm::mat3x3 &matrix) const;
     void set_uniform_matrix4(const char* name, const glm::mat4x4 &matrix) const;
+    void set_uniform_matrix4(const char* name, const float* matrix) const;
     // Samplers / textures
     void set_uniform_texture(const char* name, const int tex_name) const;
 };

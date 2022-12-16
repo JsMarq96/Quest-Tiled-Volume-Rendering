@@ -18,7 +18,7 @@ uniform mat4 u_vp_mat;
 uniform mat4 u_model_mat;
 
 void main() {
-    vec4 world_pos = u_model_mat * vec4(a_pos, 1.0);
+    vec4 world_pos =  vec4(a_pos, 1.0);
     v_world_position = world_pos.xyz;
     v_local_position = a_pos;
     v_uv = a_uv;
@@ -223,7 +223,7 @@ in vec2 v_screen_position;
 out vec4 o_frag_color;
 
 void main() {
-    o_frag_color = vec4(1.0, 0.0, 0.0, 1.0);
+    o_frag_color = vec4(1.0, 1.0, 0.0, 1.0);
 }
 )";
 

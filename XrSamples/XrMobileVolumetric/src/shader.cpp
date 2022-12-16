@@ -202,6 +202,10 @@ void sShader::set_uniform_matrix4(const char* name, const glm::mat4x4 &matrix) c
     glUniformMatrix4fv(glGetUniformLocation(ID, name), 1, false, glm::value_ptr(matrix));
 }
 
+void sShader::set_uniform_matrix4(const char* name, const float* matrix) const {
+    glUniformMatrix4fv(glGetUniformLocation(ID, name), 1, false, matrix);
+}
+
 #include <iostream>
 void sShader::set_uniform_texture(const char* name,
                                   const int tex_spot) const {

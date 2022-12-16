@@ -157,7 +157,8 @@ namespace Render {
         void change_graphic_state(const sGLState &new_state);
         void render_frame(const bool clean_frame,
                           const glm::mat4x4 *view_mats,
-                          const glm::mat4x4 *proj_mats);
+                          const glm::mat4x4 *proj_mats,
+                          const glm::mat4x4 *viewproj_mats);
 
         // Inlines
         inline uint8_t add_drawcall_to_pass(const uint8_t pass_id,
@@ -253,7 +254,9 @@ namespace Render {
         }
 
         // FBO Functions =====
-        void FBO_init(const uint8_t fbo_id);
+        void FBO_init(const uint8_t fbo_id,
+                      const uint32_t width_i,
+                      const uint32_t height_i);
 
         void FBO_init_with_single_color(const uint8_t fbo_id,
                                         const uint32_t width_i,
@@ -269,6 +272,15 @@ namespace Render {
 
         inline void FBO_bind(const uint8_t fbo_id) const {
             glBindFramebuffer(GL_FRAMEBUFFER, fbos[fbo_id].id);
+            glViewport(0,
+                       0,
+                       fbos[fbo_id].width,
+                       fbos[fbo_id].width);
+            glScissor(0,
+                       0,
+                       fbos[fbo_id].width,
+                       fbos[fbo_id].width);
+            //glEnable(GL_SCISSOR_TEST);
         }
         inline void FBO_unbind() const {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);

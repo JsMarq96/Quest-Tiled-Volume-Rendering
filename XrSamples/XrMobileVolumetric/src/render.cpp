@@ -78,21 +78,23 @@ void Render::sInstance::init(sOpenXRFramebuffer *openxr_framebuffer) {
 
             // Create FBO
             const uint8_t eye_fbo_id = fbo_count++;
-            FBO_init(eye_fbo_id);
-            glBindFramebuffer(GL_DRAW_FRAMEBUFFER,
+            FBO_init(eye_fbo_id,
+                     openxr_framebuffer[eye].width,
+                     openxr_framebuffer[eye].height);
+            glBindFramebuffer(GL_FRAMEBUFFER,
                               fbos[eye_fbo_id].id);
-            glFramebufferRenderbuffer(GL_DRAW_FRAMEBUFFER,
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER,
                                       GL_DEPTH_ATTACHMENT,
                                       GL_RENDERBUFFER,
                                       rbos[depth_rbo_id].id);
-            glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER,
+            glFramebufferTexture2D(GL_FRAMEBUFFER,
                                    GL_COLOR_ATTACHMENT0,
                                    GL_TEXTURE_2D,
                                    gl_color_text,
                                    0);
 
-            assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER == GL_FRAMEBUFFER_COMPLETE) && "Failed FBO creation");
-            glBindFramebuffer(GL_DRAW_FRAMEBUFFER,
+            assert(glCheckFramebufferStatus(GL_FRAMEBUFFER == GL_FRAMEBUFFER_COMPLETE) && "Failed FBO creation");
+            glBindFramebuffer(GL_FRAMEBUFFER,
                               0);
 
             framebuffer.color_textures[eye][i] = color_text_id;
@@ -104,6 +106,7 @@ void Render::sInstance::init(sOpenXRFramebuffer *openxr_framebuffer) {
 
 
     // Set default render config
+
     current_state.depth_test_enabled = true;
     glEnable(GL_DEPTH_TEST);
     glDepthMask(current_state.write_to_depth_buffer);
@@ -113,6 +116,8 @@ void Render::sInstance::init(sOpenXRFramebuffer *openxr_framebuffer) {
     glEnable(GL_CULL_FACE);
     glCullFace(current_state.culling_mode);
     glFrontFace(current_state.front_face);
+
+    current_state.set_default();
 
     // Init quad mesh
     quad_mesh_id = meshes_count++;
@@ -186,9 +191,9 @@ void Render::sInstance::change_graphic_state(const sGLState &new_state) {
 
 void Render::sInstance::render_frame(const bool clean_frame,
                                      const glm::mat4x4 *view_mats,
-                                     const glm::mat4x4 *proj_mats) {
+                                     const glm::mat4x4 *proj_mats,
+                                     const glm::mat4x4 *viewproj_mats) {
     for(uint16_t eye = 0; eye < MAX_EYE_NUMBER; eye++) {
-        const glm::mat4x4 vp_mat = view_mats[eye] * view_mats[eye];
         const glm::vec3 camera_pos = glm::vec3(view_mats[eye][0][3],
                                                view_mats[eye][1][3],
                                                view_mats[eye][2][3]);
@@ -239,7 +244,7 @@ void Render::sInstance::render_frame(const bool clean_frame,
                     shader.set_uniform_matrix4("u_model_mat",
                                                model);
                     shader.set_uniform_matrix4("u_vp_mat",
-                                               vp_mat);
+                                               viewproj_mats[eye]);
                     //shader.set_uniform_vector("u_camera_eye_local", cam_pos);
                     shader.set_uniform_vector("u_camera_eye_local",
                                               glm::vec3(model_invert * glm::vec4(camera_pos, 1.0f)));
@@ -265,14 +270,19 @@ void Render::sInstance::render_frame(const bool clean_frame,
             }
         }
     }
+    FBO_unbind();
 }
 
 
 
 // FBO methods ===================
-void Render::sInstance::FBO_init(const uint8_t fbo_id) {
+void Render::sInstance::FBO_init(const uint8_t fbo_id,
+                                 const uint32_t width_i,
+                                 const uint32_t height_i) {
     glGenFramebuffers(1,
                       &fbos[fbo_id].id);
+    fbos[fbo_id].width = width_i;
+    fbos[fbo_id].height = height_i;
 }
 
 void Render::sInstance::FBO_init_with_single_color(const uint8_t fbo_id,
