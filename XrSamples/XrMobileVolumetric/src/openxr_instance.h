@@ -133,7 +133,7 @@ struct sOpenXRFramebuffer {
                                        (XrSwapchainImageBaseHeader*) swapchain_images));
     }
 
-    void adquire() {
+    uint32_t adquire() {
         // Adquire & load swapchain images
         XrSwapchainImageAcquireInfo swapchain_acq_info = {
                 .type = XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO,
@@ -156,6 +156,8 @@ struct sOpenXRFramebuffer {
             res = xrWaitSwapchainImage(swapchain_handle,
                                        &swapchain_wait_info);
         }
+
+        return swapchain_index;
     }
 
     void release() {
@@ -175,6 +177,7 @@ struct sOpenXR_Instance {
     XrSystemId xr_sys_id;
     XrSession xr_session;
     XrSpace xr_stage_space, xr_local_space, xr_head_space;
+    bool space_stage_enabled = false;
     XrFrameState frame_state = {};
     sEglContext egl;
 
@@ -571,10 +574,16 @@ struct sOpenXR_Instance {
                                        &output_spaces_count,
                                        reference_spaces));
 
+
         for (uint32_t i = 0; i < 0; i++) {
             if (reference_spaces[i] == XR_REFERENCE_SPACE_TYPE_STAGE) {
+                ALOGE("SUPPORTED BEIBI");
+                space_stage_enabled = true;
                 break; // Supported
             }
+        }
+        if (!space_stage_enabled) {
+            ALOGE("SPACE STAGE UNSUPPORTED");
         }
 
         free(reference_spaces);
@@ -585,23 +594,32 @@ struct sOpenXR_Instance {
                 .next = NULL,
                 .referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW,
         };
-        space_info.poseInReferenceSpace.orientation.w = 1.0f;
 
+        space_info.poseInReferenceSpace.orientation.w = 1.0f;
         OXR(xrCreateReferenceSpace(xr_session,
                                    &space_info,
                                    &xr_head_space));
 
         space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
-        //space_info.poseInReferenceSpace.orientation.w = 1.0f; // ?
         OXR(xrCreateReferenceSpace(xr_session,
                                    &space_info,
                                    &xr_local_space));
 
-        space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE;
-        space_info.poseInReferenceSpace.position.y = 0.0f; // ?
+        // Use a fake stage space
+        space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
+        space_info.poseInReferenceSpace.position.y = -1.6750f;
         OXR(xrCreateReferenceSpace(xr_session,
                                    &space_info,
                                    &xr_stage_space));
+
+        if (space_stage_enabled) {
+            space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE;
+            space_info.poseInReferenceSpace.position.y = 0.0f;
+            OXR(xrCreateReferenceSpace(xr_session,
+                                       &space_info,
+                                       &xr_stage_space));
+        }
+
     }
 
     void init(sOpenXRFramebuffer *framebuffers) {
@@ -660,8 +678,8 @@ struct sOpenXR_Instance {
                              view_configs[0].recommendedImageRectHeight,
                              GL_SRGB8_ALPHA8);
         framebuffers[1].init(xr_session,
-                             view_configs[1].recommendedImageRectWidth,
-                             view_configs[1].recommendedImageRectHeight,
+                             view_configs[0].recommendedImageRectWidth,
+                             view_configs[0].recommendedImageRectHeight,
                              GL_SRGB8_ALPHA8);
 
         // TODO: Foveation
@@ -689,7 +707,7 @@ struct sOpenXR_Instance {
                                       (PFN_xrVoidFunction*)(&pfnPerfSettingsSetPerformanceLevelEXT)));
 
             // Set the CPU performance profile
-            const Device::eCPUGPUPower cpu_power_target = Device::LVL_1_LOW_POWER;
+            const Device::eCPUGPUPower cpu_power_target = Device::LVL_2_HIGH_POWER;
             OXR(pfnPerfSettingsSetPerformanceLevelEXT(xr_session,
                                                       XR_PERF_SETTINGS_DOMAIN_CPU_EXT,
                                                       (XrPerfSettingsLevelEXT) cpu_power_target));
@@ -808,6 +826,11 @@ struct sOpenXR_Instance {
                           &space_location));
         XrPosef pose_stage_from_head = space_location.pose;
 
+        OXR(xrLocateSpace(xr_head_space,
+                          xr_local_space,
+                          frame_state.predictedDisplayTime,
+                          &space_location));
+
         // Get Projection ===
         XrViewLocateInfo projection_info = {
                 .type = XR_TYPE_VIEW_LOCATE_INFO,
@@ -831,6 +854,7 @@ struct sOpenXR_Instance {
                           eye_projections));
 
         *delta_time = FromXrTime(frame_state.predictedDisplayTime);
+        ALOGE("VIEW COUNT %i", projection_capacity);
 
         // Generate view projections
         for (int eye = 0; eye < MAX_EYE_NUMBER; eye++) {
@@ -846,7 +870,8 @@ struct sOpenXR_Instance {
                                              GRAPHICS_OPENGL_ES,
                                              fov,
                                              0.01f,
-                                             0.0f);
+                                             10000.0f);
+
 
             XrMatrix4x4f_Multiply(&transforms->viewprojection[eye],
                                   &transforms->projection[eye],

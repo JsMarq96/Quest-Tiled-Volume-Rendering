@@ -194,6 +194,9 @@ void Render::sInstance::render_frame(const bool clean_frame,
                                      const glm::mat4x4 *proj_mats,
                                      const glm::mat4x4 *viewproj_mats) {
     for(uint16_t eye = 0; eye < MAX_EYE_NUMBER; eye++) {
+        glm::mat4 vp_n = glm::transpose(viewproj_mats[eye]);
+        glm::mat4 vp = proj_mats[eye] * view_mats[eye];
+
         const glm::vec3 camera_pos = glm::vec3(view_mats[eye][0][3],
                                                view_mats[eye][1][3],
                                                view_mats[eye][2][3]);
@@ -205,8 +208,8 @@ void Render::sInstance::render_frame(const bool clean_frame,
                 FBO_bind(pass.fbo_id);
             } else {
                 // Bind an FBO target of the OpenXR swapchain
-                framebuffer.openxr_framebufffs[eye].adquire();
-                FBO_bind(framebuffer.fbos[eye][framebuffer.openxr_framebufffs->swapchain_index]);
+                uint32_t curr_swapchain_index = framebuffer.openxr_framebufffs[eye].adquire();
+                FBO_bind(framebuffer.fbos[eye][curr_swapchain_index]);
             }
 
             // Clear the curent buffer
@@ -244,10 +247,10 @@ void Render::sInstance::render_frame(const bool clean_frame,
                     shader.set_uniform_matrix4("u_model_mat",
                                                model);
                     shader.set_uniform_matrix4("u_vp_mat",
-                                               viewproj_mats[eye]);
-                    //shader.set_uniform_vector("u_camera_eye_local", cam_pos);
+                                               vp);
+                    //shader.set_uniform_vector("u_camera_eye_local", cam_pos); V estoe stamal
                     shader.set_uniform_vector("u_camera_eye_local",
-                                              glm::vec3(model_invert * glm::vec4(camera_pos, 1.0f)));
+                                              glm::vec3(vp_n * glm::vec4(camera_pos, 1.0f)));
                 }
 
 

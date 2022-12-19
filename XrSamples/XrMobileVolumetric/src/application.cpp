@@ -43,7 +43,7 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
                                     .material_id = plaincolor_material,
                                     .use_transform = true,
                                     .transform = {
-                                          .position = {0.0f, 0.0001f, 0.000f},
+                                          .position = {0.5f, 2.0f, 0.50f},
                                           .scale = {.50f, 0.50f, 0.50f}
                                           },
                                     .call_state = { .depth_test_enabled = false, .write_to_depth_buffer = true, .culling_enabled = false},
