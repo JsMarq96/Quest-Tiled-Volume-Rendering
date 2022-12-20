@@ -188,7 +188,7 @@ void Render::sInstance::change_graphic_state(const sGLState &new_state) {
         current_state.blend_func_y = new_state.blend_func_y;
     }
 }
-
+// https://gitlab.freedesktop.org/monado/demos/xrgears/-/blob/master/src/pipeline_equirect.cpp#L282
 void Render::sInstance::render_frame(const bool clean_frame,
                                      const glm::mat4x4 *view_mats,
                                      const glm::mat4x4 *proj_mats,
