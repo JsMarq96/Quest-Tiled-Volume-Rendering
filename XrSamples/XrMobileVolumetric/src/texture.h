@@ -4,6 +4,9 @@
 #include <string.h>
 #include <cassert>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+//#include <stb_image.h>
 
 #define DEFAULT_TEXT_FIDELITY 0
 

@@ -80,10 +80,10 @@ struct sMaterialManager {
     uint8_t add_raw_shader(const char     *vertex_shader,
                            const char     *fragment_shader);
 
-    void add_volume_texture(const char* text_dir,
-                            const uint16_t tile_width,
-                            const uint16_t tile_heigth,
-                            const uint16_t tile_depth);
+    uint8_t add_volume_texture(const char* text_dir,
+                              const uint16_t tile_width,
+                              const uint16_t tile_heigth,
+                              const uint16_t tile_depth);
 
     uint8_t load_async_texture3D(const char* dir,
                               const uint16_t width,

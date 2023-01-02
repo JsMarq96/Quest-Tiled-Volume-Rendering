@@ -4,6 +4,7 @@
 
 #include "application.h"
 #include "raw_meshes.h"
+#include "asset_locator.h"
 
 void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
     // Load cube mesh
@@ -20,6 +21,15 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
                                                                             RawShaders::basic_fragment);
 
     // Load textures async (TODO)
+    // For now, just load sync
+    char *volume_tex_dir = NULL;
+    Assets::get_asset_dir("assets/bonsai_256x256x256_uint8.raw",
+                          &volume_tex_dir);
+    renderer.material_man.add_volume_texture(volume_tex_dir,
+                                             256,
+                                             256,
+                                             256);
+    free(volume_tex_dir);
 
     // Create materials
     //const uint8_t volumetric_material = renderer.material_man.add_material(volume_shader,
@@ -43,7 +53,7 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
                                     .material_id = plaincolor_material,
                                     .use_transform = true,
                                     .transform = {
-                                          .position = {0.5f, 2.0f, 0.50f},
+                                          .position = {0.5f, 1.0f, -0.50f},
                                           .scale = {.50f, 0.50f, 0.50f}
                                           },
                                     .call_state = { .depth_test_enabled = false, .write_to_depth_buffer = true, .culling_enabled = false},

@@ -88,13 +88,15 @@ void sTexture::load(const eTextureType text_type,
 
         return;
     }
-    int w, h;
+    int w = 0, h = 0;
     //text->raw_data = stbi_load(texture_name, &w, &h, &l, 0);
 
 #ifndef __EMSCRIPTEN__
-    //raw_data = stbi_load(name_buffer, &w, &h, &l, 0);
-    w = 0;
-    h = 0;
+    /*raw_data = (char*) stbi_load(texture_name,
+                                 &w,
+                                 &h,
+                                 &l,
+                                 0);*/
 #else
     raw_data = emscripten_get_preloaded_image_data(texture_name, &w, &h);
     l = 4;
@@ -158,7 +160,26 @@ void sTexture::load3D(const char* texture_name,
     //text->raw_data = stbi_load(texture_name, &w, &h, &l, 0);
 
 #ifndef __EMSCRIPTEN__
-    //raw_data = stbi_load(name_buffer, &w, &h, &l, 0);
+    FILE *file = fopen(texture_name,
+                            "rb");
+
+    // Get total filesize
+    fseek(file,
+          0,
+          SEEK_END);
+    uint32_t file_size = ftell(file);
+    fseek(file,
+          0,
+          SEEK_SET);
+
+    raw_data = (char*) malloc(file_size + 1);
+    raw_data[file_size] = '\0';
+
+    fread(raw_data,
+          file_size,
+          1,
+          file);
+    fclose(file);
 #else
     raw_data = emscripten_get_preloaded_image_data(texture_name, &w, &h);
     l = 4;

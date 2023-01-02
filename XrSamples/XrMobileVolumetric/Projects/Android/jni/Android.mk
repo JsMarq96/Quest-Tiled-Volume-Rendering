@@ -1,14 +1,20 @@
 LOCAL_PATH := $(call my-dir)
-include $(CLEAR_VARS)
 
+include $(CLEAR_VARS)
+LOCAL_MODULE := libzip
+LOCAL_SRC_FILES := $(LOCAL_PATH)/../../../../../3rdParty/libzip/libs/$(TARGET_ARCH_ABI)/libzip.so
+include $(PREBUILT_SHARED_LIBRARY)
+
+include $(CLEAR_VARS)
 LOCAL_MODULE := xrmobilevolumetric
 
 include ../../../../cflags.mk
 
 APP_STL := gnustl_static
-
 LOCAL_C_INCLUDES := \
   					$(LOCAL_PATH)/../../../../../3rdParty/khronos/openxr/OpenXR-SDK/include \
+
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../../../../../3rdParty/libzip/jni
 
 LOCAL_CFLAGS += -I$(LOCAL_PATH)/../../../../../glm/
 
@@ -22,6 +28,7 @@ LOCAL_CFLAGS += -UNDEBUG -g
 
 LOCAL_STATIC_LIBRARIES := android_native_app_glue
 LOCAL_SHARED_LIBRARIES := openxr_loader
+LOCAL_SHARED_LIBRARIES += libzip
 
 LOCAL_SANITIZE := alignment bounds null unreachable integer
 LOCAL_SANITIZE_DIAG := alignment bounds null unreachable integer

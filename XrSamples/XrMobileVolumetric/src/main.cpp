@@ -39,6 +39,7 @@ Copyright : Copyright (c) Facebook Technologies, LLC and its affiliates. All rig
 #include "render.h"
 #include "app_data.h"
 #include "application.h"
+#include "asset_locator.h"
 
 
 static void app_handle_cmd(struct android_app* app, int32_t cmd) {
@@ -121,6 +122,10 @@ void android_main(struct android_app* app) {
 
     app_state.application_vm = app->activity->vm;
     app_state.application_activity = app->activity->clazz; // ??
+
+    // Init the asset locator
+    Assets::fetch_asset_locator()->init(Env,
+                                        app->activity);
 
     PFN_xrInitializeLoaderKHR xrInitializeLoaderKHR;
     xrGetInstanceProcAddr(XR_NULL_HANDLE,
