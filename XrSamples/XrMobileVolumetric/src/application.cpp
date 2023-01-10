@@ -15,28 +15,27 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
                                                    sizeof(RawMesh::cube_indices));
 
     // Create shaders
-    //const uint8_t volume_shader = renderer.material_man.add_raw_shader(RawShaders::basic_vertex,
-    //                                                                   RawShaders::volumetric_fragment);
-    const uint8_t plaincolor_shader = renderer.material_man.add_raw_shader(RawShaders::basic_vertex,
-                                                                            RawShaders::basic_fragment);
+    const uint8_t volume_shader = renderer.material_man.add_raw_shader(RawShaders::basic_vertex,
+                                                                       RawShaders::volumetric_fragment);
+    //const uint8_t plaincolor_shader = renderer.material_man.add_raw_shader(RawShaders::basic_vertex,
+    //                                                                        RawShaders::basic_fragment);
 
     // Load textures async (TODO)
     // For now, just load sync
     char *volume_tex_dir = NULL;
     Assets::get_asset_dir("assets/bonsai_256x256x256_uint8.raw",
                           &volume_tex_dir);
-    renderer.material_man.add_volume_texture(volume_tex_dir,
-                                             256,
-                                             256,
-                                             256);
+    const uint8_t volume_texture = renderer.material_man.add_volume_texture(volume_tex_dir,
+                                                                            256,
+                                                                            256,
+                                                                            256);
     free(volume_tex_dir);
 
     // Create materials
-    //const uint8_t volumetric_material = renderer.material_man.add_material(volume_shader,
-    //                                                                       {  .volume_tex = 0,
-    //                                                                               .enabled_volume = true });
-    const uint8_t plaincolor_material = renderer.material_man.add_material(plaincolor_shader,
-                                                                           { });
+    const uint8_t volumetric_material = renderer.material_man.add_material(volume_shader,
+                                                                           {  .volume_tex = volume_texture,
+                                                                              .enabled_volume = true });
+
 
     // Create the render pipeline
     const uint8_t render_pass = renderer.add_render_pass(Render::SCREEN_TARGET,
@@ -50,11 +49,11 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
 
     renderer.add_drawcall_to_pass(render_pass,
                                   { .mesh_id = cube_mesh,
-                                    .material_id = plaincolor_material,
+                                    .material_id = volumetric_material,
                                     .use_transform = true,
                                     .transform = {
                                           .position = {0.5f, 1.0f, -0.50f},
-                                          .scale = {.50f, 0.50f, 0.50f}
+                                          .scale = {0.50f, 0.50f, 0.50f}
                                           },
                                     .call_state = { .depth_test_enabled = false, .write_to_depth_buffer = true, .culling_enabled = false},
                                     .enabled = true });

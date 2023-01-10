@@ -384,9 +384,9 @@ static inline void XrMatrix4x4f_CreateProjection(
 
     // Set to nearZ for a [-1,1] Z clip space (OpenGL / OpenGL ES).
     // Set to zero for a [0,1] Z clip space (Vulkan / D3D / Metal).
-    //const float offsetZ =
-    //    (graphicsApi == GRAPHICS_OPENGL || graphicsApi == GRAPHICS_OPENGL_ES) ? nearZ : 0.0f;
-    /*if (farZ <= nearZ) {
+    const float offsetZ =
+        (graphicsApi == GRAPHICS_OPENGL || graphicsApi == GRAPHICS_OPENGL_ES) ? nearZ : 0.0f;
+    if (farZ <= nearZ) {
         // place the far plane at infinity
         result->m[0] = 2 / tanAngleWidth;
         result->m[4] = 0;
@@ -428,23 +428,6 @@ static inline void XrMatrix4x4f_CreateProjection(
         result->m[7] = 0;
         result->m[11] = -1;
         result->m[15] = 0;
-    }*/
-    // https://gitlab.freedesktop.org/monado/demos/xrgears/-/blob/master/src/main.cpp#L159
-    const float a11 = 2 / tanAngleWidth;
-    const float a22 = 2 / tanAngleHeight;
-
-    const float a31 = (tanAngleRight + tanAngleLeft) / tanAngleWidth;
-    const float a32 = (tanAngleUp + tanAngleDown) / tanAngleHeight;
-    const float a33 = -farZ / (farZ - nearZ);
-
-    const float a43 = -(farZ * nearZ) / (farZ - nearZ);
-
-    const float mat[16] = {
-            a11, 0, 0, 0, 0, a22, 0, 0, a31, a32, a33, -1, 0, 0, a43, 0,
-    };
-
-    for(uint8_t i = 0; i < 16;i++) {
-        result->m[i] = mat[i];
     }
 }
 

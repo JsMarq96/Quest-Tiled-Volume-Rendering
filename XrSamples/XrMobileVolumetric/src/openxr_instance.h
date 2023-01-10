@@ -19,14 +19,25 @@
 
 #include <android/log.h>
 
+#include <glm/glm.hpp>
+
 #include "egl_context.h"
 #include "app_data.h"
 #include "device.h"
+#include "glm/gtc/type_ptr.hpp"
 
+struct sFrameTransforms {
+    glm::mat4x4 view[MAX_EYE_NUMBER];
+    glm::mat4x4 projection[MAX_EYE_NUMBER];
+    glm::mat4x4 viewprojection[MAX_EYE_NUMBER];
+};
+
+// Logging gunctions
 static XrInstance *global_xr_instance;
 #define ALOGE(...) __android_log_print(ANDROID_LOG_ERROR, "OpenXr", __VA_ARGS__)
 #define ALOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, "OpenXr", __VA_ARGS__)
-inline void OXR_CheckErrors(XrResult result, const char* function, bool failOnError) {
+
+inline void OXR_CheckErrors(XrResult result, const char *function, bool failOnError) {
     if (XR_FAILED(result)) {
         char errorBuffer[XR_MAX_RESULT_STRING_SIZE];
         xrResultToString(*global_xr_instance,
@@ -39,13 +50,55 @@ inline void OXR_CheckErrors(XrResult result, const char* function, bool failOnEr
         }
     }
 }
+
 #define OXR(func) OXR_CheckErrors(func, #func, true);
 
-struct sFrameTransforms {
-    XrMatrix4x4f view[MAX_EYE_NUMBER];
-    XrMatrix4x4f projection[MAX_EYE_NUMBER];
-    XrMatrix4x4f viewprojection[MAX_EYE_NUMBER];
-};
+namespace OpenXRHelpers {
+    // From https://github.com/jherico/OpenXR-Samples/blob/master/src/examples/sdl2_gl_single_file_example.cpp
+    inline void pose_to_glm_mat(const XrPosef &origin,
+                                glm::mat4x4 *result) {
+        glm::mat4 orientation = glm::mat4_cast(glm::make_quat(&origin.orientation.x));
+        glm::mat4 translation = glm::translate(glm::mat4{1},
+                                               glm::make_vec3(&origin.position.x));
+        *result = translation * orientation;
+    }
+
+    inline void create_glm_projection(const XrFovf &fov,
+                                      const float near,
+                                      const float far,
+                                      glm::mat4x4 *result) {
+        const float tanAngleRight = tanf(fov.angleRight);
+        const float tanAngleLeft = tanf(fov.angleLeft);
+        const float tanAngleUp = tanf(fov.angleUp);
+        const float tanAngleDown = tanf(fov.angleDown);
+
+        const float tanAngleWidth = tanAngleRight - tanAngleLeft;
+        const float tanAngleHeight = (tanAngleDown - tanAngleUp);
+        const float offsetZ = 0;
+
+        float *result_as_arr = (float *) &result[0][0];
+        // normal projection
+        result_as_arr[0] = 2 / tanAngleWidth;
+        result_as_arr[4] = 0;
+        result_as_arr[8] = (tanAngleRight + tanAngleLeft) / tanAngleWidth;
+        result_as_arr[12] = 0;
+
+        result_as_arr[1] = 0;
+        result_as_arr[5] = 2 / tanAngleHeight;
+        result_as_arr[9] = (tanAngleUp + tanAngleDown) / tanAngleHeight;
+        result_as_arr[13] = 0;
+
+        result_as_arr[2] = 0;
+        result_as_arr[6] = 0;
+        result_as_arr[10] = -(far + offsetZ) / (far - near);
+        result_as_arr[14] = -(far * (near + offsetZ)) / (far - near);
+
+        result_as_arr[3] = 0;
+        result_as_arr[7] = 0;
+        result_as_arr[11] = -1;
+        result_as_arr[15] = 0;
+    }
+}
 
 // ===========================
 // ACTIONS & INPUTS
@@ -89,7 +142,7 @@ struct sOpenXRFramebuffer {
     void init(XrSession &session,
               const uint32_t i_width,
               const uint32_t i_height,
-              const GLenum   color_format){
+              const GLenum color_format) {
         width = i_width;
         height = i_height;
 
@@ -98,7 +151,8 @@ struct sOpenXRFramebuffer {
         XrSwapchainCreateInfo swapchain_create = {
                 .type = XR_TYPE_SWAPCHAIN_CREATE_INFO,
                 .next = NULL,
-                .usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_SAMPLED_BIT,
+                .usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT |
+                              XR_SWAPCHAIN_USAGE_SAMPLED_BIT,
                 .format = color_format,
                 .sampleCount = 1,
                 .width = width,
@@ -121,16 +175,17 @@ struct sOpenXRFramebuffer {
                                        NULL));
 
         // Allocate
-        swapchain_images = (XrSwapchainImageOpenGLESKHR*) malloc(sizeof(XrSwapchainImageOpenGLESKHR) * swapchain_length);
+        swapchain_images = (XrSwapchainImageOpenGLESKHR *) malloc(
+                sizeof(XrSwapchainImageOpenGLESKHR) * swapchain_length);
         // Fill
-        for(uint32_t i = 0; i < swapchain_length; i++) {
+        for (uint32_t i = 0; i < swapchain_length; i++) {
             swapchain_images[i].type = XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_ES_KHR;
             swapchain_images[i].next = NULL;
         }
         OXR(xrEnumerateSwapchainImages(swapchain_handle,
                                        swapchain_length,
                                        &swapchain_length,
-                                       (XrSwapchainImageBaseHeader*) swapchain_images));
+                                       (XrSwapchainImageBaseHeader *) swapchain_images));
     }
 
     uint32_t adquire() {
@@ -152,7 +207,7 @@ struct sOpenXRFramebuffer {
         XrResult res = xrWaitSwapchainImage(swapchain_handle,
                                             &swapchain_wait_info);
 
-        while(res == XR_TIMEOUT_EXPIRED) {
+        while (res == XR_TIMEOUT_EXPIRED) {
             res = xrWaitSwapchainImage(swapchain_handle,
                                        &swapchain_wait_info);
         }
@@ -207,7 +262,7 @@ struct sOpenXR_Instance {
         (result = xrGetInstanceProcAddr(
                 XR_NULL_HANDLE,
                 "xrEnumerateInstanceExtensionProperties",
-                (PFN_xrVoidFunction*)&xrEnumerateInstanceExtensionProperties));
+                (PFN_xrVoidFunction *) &xrEnumerateInstanceExtensionProperties));
         if (result != XR_SUCCESS) {
             //ALOGE("Failed to get xrEnumerateInstanceExtensionProperties function pointer.");
             exit(1);
@@ -222,8 +277,9 @@ struct sOpenXR_Instance {
 
         numInputExtensions = numOutputExtensions;
 
-        XrExtensionProperties* extensionProperties =
-                (XrExtensionProperties*)malloc(numOutputExtensions * sizeof(XrExtensionProperties));
+        XrExtensionProperties *extensionProperties =
+                (XrExtensionProperties *) malloc(
+                        numOutputExtensions * sizeof(XrExtensionProperties));
 
         for (uint32_t i = 0; i < numOutputExtensions; i++) {
             extensionProperties[i].type = XR_TYPE_EXTENSION_PROPERTIES;
@@ -234,7 +290,6 @@ struct sOpenXR_Instance {
                                                    numInputExtensions,
                                                    &numOutputExtensions,
                                                    extensionProperties));
-
 
 
         uint32_t extension_count = 3; // TODO just the necessary extesions
@@ -313,14 +368,15 @@ struct sOpenXR_Instance {
 
         assert(viewport_count > 0 && "No enought viewport configs on device");
 
-        XrViewConfigurationType *viewport_configs = (XrViewConfigurationType*) malloc(sizeof(XrViewConfigurationType) * viewport_count);
+        XrViewConfigurationType *viewport_configs = (XrViewConfigurationType *) malloc(
+                sizeof(XrViewConfigurationType) * viewport_count);
         OXR(xrEnumerateViewConfigurations(xr_instance,
                                           xr_sys_id,
                                           viewport_count,
                                           &viewport_count,
                                           viewport_configs));
 
-        for(uint32_t i = 0; i < viewport_count; i++) {
+        for (uint32_t i = 0; i < viewport_count; i++) {
             const XrViewConfigurationType vp_config_type = viewport_configs[i];
 
             // Only interested in stereo rendering
@@ -341,8 +397,9 @@ struct sOpenXR_Instance {
 
             assert(view_count == MAX_EYE_NUMBER && "Only need two eyes on stereo rendering!");
 
-            XrViewConfigurationView *views = (XrViewConfigurationView*) malloc(sizeof(XrViewConfigurationView) * view_count);
-            for(uint32_t j = 0; j < view_count; j++) {
+            XrViewConfigurationView *views = (XrViewConfigurationView *) malloc(
+                    sizeof(XrViewConfigurationView) * view_count);
+            for (uint32_t j = 0; j < view_count; j++) {
                 views[j].type = XR_TYPE_VIEW_CONFIGURATION_VIEW;
                 views[j].next = NULL;
             }
@@ -383,7 +440,8 @@ struct sOpenXR_Instance {
 
         // Get the XrPath for the left and right hands - we will use them as subaction paths.
         (xrStringToPath(xr_instance, "/user/hand/left", &input_state.handSubactionPath[LEFT]));
-        (xrStringToPath(xr_instance, "/user/hand/right", &input_state.handSubactionPath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/right",
+                        &input_state.handSubactionPath[RIGHT]));
 
         // Create actions.
         {
@@ -433,38 +491,50 @@ struct sOpenXR_Instance {
         XrPath bClickPath[COUNT];
         XrPath triggerValuePath[COUNT];
         (xrStringToPath(xr_instance, "/user/hand/left/input/select/click", &selectPath[LEFT]));
-        (xrStringToPath(xr_instance, "/user/hand/right/input/select/click", &selectPath[RIGHT]));
-        (xrStringToPath(xr_instance, "/user/hand/left/input/squeeze/value", &squeezeValuePath[LEFT]));
-        (xrStringToPath(xr_instance, "/user/hand/right/input/squeeze/value", &squeezeValuePath[RIGHT]));
-        (xrStringToPath(xr_instance, "/user/hand/left/input/squeeze/force", &squeezeForcePath[LEFT]));
-        (xrStringToPath(xr_instance, "/user/hand/right/input/squeeze/force", &squeezeForcePath[RIGHT]));
-        (xrStringToPath(xr_instance, "/user/hand/left/input/squeeze/click", &squeezeClickPath[LEFT]));
-        (xrStringToPath(xr_instance, "/user/hand/right/input/squeeze/click", &squeezeClickPath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/input/select/click",
+                        &selectPath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/left/input/squeeze/value",
+                        &squeezeValuePath[LEFT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/input/squeeze/value",
+                        &squeezeValuePath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/left/input/squeeze/force",
+                        &squeezeForcePath[LEFT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/input/squeeze/force",
+                        &squeezeForcePath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/left/input/squeeze/click",
+                        &squeezeClickPath[LEFT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/input/squeeze/click",
+                        &squeezeClickPath[RIGHT]));
         (xrStringToPath(xr_instance, "/user/hand/left/input/grip/pose", &posePath[LEFT]));
         (xrStringToPath(xr_instance, "/user/hand/right/input/grip/pose", &posePath[RIGHT]));
         (xrStringToPath(xr_instance, "/user/hand/left/output/haptic", &hapticPath[LEFT]));
         (xrStringToPath(xr_instance, "/user/hand/right/output/haptic", &hapticPath[RIGHT]));
         (xrStringToPath(xr_instance, "/user/hand/left/input/menu/click", &menuClickPath[LEFT]));
-        (xrStringToPath(xr_instance, "/user/hand/right/input/menu/click", &menuClickPath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/input/menu/click",
+                        &menuClickPath[RIGHT]));
         (xrStringToPath(xr_instance, "/user/hand/left/input/b/click", &bClickPath[LEFT]));
         (xrStringToPath(xr_instance, "/user/hand/right/input/b/click", &bClickPath[RIGHT]));
-        (xrStringToPath(xr_instance, "/user/hand/left/input/trigger/value", &triggerValuePath[LEFT]));
-        (xrStringToPath(xr_instance, "/user/hand/right/input/trigger/value", &triggerValuePath[RIGHT]));
+        (xrStringToPath(xr_instance, "/user/hand/left/input/trigger/value",
+                        &triggerValuePath[LEFT]));
+        (xrStringToPath(xr_instance, "/user/hand/right/input/trigger/value",
+                        &triggerValuePath[RIGHT]));
         // Suggest bindings for KHR Simple.
         {
             XrPath khrSimpleInteractionProfilePath;
             (
-                    xrStringToPath(xr_instance, "/interaction_profiles/khr/simple_controller", &khrSimpleInteractionProfilePath));
+                    xrStringToPath(xr_instance, "/interaction_profiles/khr/simple_controller",
+                                   &khrSimpleInteractionProfilePath));
             XrActionSuggestedBinding bindings[8] = {// Fall back to a click input for the grab action.
-                    {input_state.grabAction, selectPath[LEFT]},
-                    {input_state.grabAction, selectPath[RIGHT]},
-                    {input_state.poseAction, posePath[LEFT]},
-                    {input_state.poseAction, posePath[RIGHT]},
-                    {input_state.quitAction, menuClickPath[LEFT]},
-                    {input_state.quitAction, menuClickPath[RIGHT]},
+                    {input_state.grabAction,    selectPath[LEFT]},
+                    {input_state.grabAction,    selectPath[RIGHT]},
+                    {input_state.poseAction,    posePath[LEFT]},
+                    {input_state.poseAction,    posePath[RIGHT]},
+                    {input_state.quitAction,    menuClickPath[LEFT]},
+                    {input_state.quitAction,    menuClickPath[RIGHT]},
                     {input_state.vibrateAction, hapticPath[LEFT]},
                     {input_state.vibrateAction, hapticPath[RIGHT]}};
-            XrInteractionProfileSuggestedBinding suggestedBindings{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
+            XrInteractionProfileSuggestedBinding suggestedBindings{
+                    XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
             suggestedBindings.interactionProfile = khrSimpleInteractionProfilePath;
             suggestedBindings.suggestedBindings = bindings;
             suggestedBindings.countSuggestedBindings = 8;
@@ -474,15 +544,17 @@ struct sOpenXR_Instance {
         {
             XrPath oculusTouchInteractionProfilePath;
             (
-                    xrStringToPath(xr_instance, "/interaction_profiles/oculus/touch_controller", &oculusTouchInteractionProfilePath));
-            XrActionSuggestedBinding bindings[7] = {{input_state.grabAction, squeezeValuePath[LEFT]},
-                                                    {input_state.grabAction, squeezeValuePath[RIGHT]},
-                                                    {input_state.poseAction, posePath[LEFT]},
-                                                    {input_state.poseAction, posePath[RIGHT]},
-                                                    {input_state.quitAction, menuClickPath[LEFT]},
+                    xrStringToPath(xr_instance, "/interaction_profiles/oculus/touch_controller",
+                                   &oculusTouchInteractionProfilePath));
+            XrActionSuggestedBinding bindings[7] = {{input_state.grabAction,    squeezeValuePath[LEFT]},
+                                                    {input_state.grabAction,    squeezeValuePath[RIGHT]},
+                                                    {input_state.poseAction,    posePath[LEFT]},
+                                                    {input_state.poseAction,    posePath[RIGHT]},
+                                                    {input_state.quitAction,    menuClickPath[LEFT]},
                                                     {input_state.vibrateAction, hapticPath[LEFT]},
                                                     {input_state.vibrateAction, hapticPath[RIGHT]}};
-            XrInteractionProfileSuggestedBinding suggestedBindings{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
+            XrInteractionProfileSuggestedBinding suggestedBindings{
+                    XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
             suggestedBindings.interactionProfile = oculusTouchInteractionProfilePath;
             suggestedBindings.suggestedBindings = bindings;
             suggestedBindings.countSuggestedBindings = 7;
@@ -567,7 +639,8 @@ struct sOpenXR_Instance {
                                        0, &output_spaces_count,
                                        NULL));
 
-        XrReferenceSpaceType *reference_spaces = (XrReferenceSpaceType *) malloc(sizeof(XrReferenceSpaceType) * output_spaces_count);
+        XrReferenceSpaceType *reference_spaces = (XrReferenceSpaceType *) malloc(
+                sizeof(XrReferenceSpaceType) * output_spaces_count);
 
         OXR(xrEnumerateReferenceSpaces(xr_session,
                                        output_spaces_count,
@@ -632,7 +705,7 @@ struct sOpenXR_Instance {
             PFN_xrGetOpenGLESGraphicsRequirementsKHR pfnGetOpenGLESGraphicsRequirementsKHR = NULL;
             OXR(xrGetInstanceProcAddr(xr_instance,
                                       "xrGetOpenGLESGraphicsRequirementsKHR",
-                                      (PFN_xrVoidFunction*)(&pfnGetOpenGLESGraphicsRequirementsKHR)));
+                                      (PFN_xrVoidFunction *) (&pfnGetOpenGLESGraphicsRequirementsKHR)));
 
             XrGraphicsRequirementsOpenGLESKHR graphics_requirements = {
                     .type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR,
@@ -661,7 +734,7 @@ struct sOpenXR_Instance {
 
         // CONFIG VIEWS ================================================================
         {
-            for(uint16_t i = 0; i < MAX_EYE_NUMBER; i++) { // To fill on the realtime
+            for (uint16_t i = 0; i < MAX_EYE_NUMBER; i++) { // To fill on the realtime
                 memset(&eye_projections[i],
                        0,
                        sizeof(XrView));
@@ -704,7 +777,7 @@ struct sOpenXR_Instance {
             PFN_xrPerfSettingsSetPerformanceLevelEXT pfnPerfSettingsSetPerformanceLevelEXT = NULL;
             OXR(xrGetInstanceProcAddr(xr_instance,
                                       "xrPerfSettingsSetPerformanceLevelEXT",
-                                      (PFN_xrVoidFunction*)(&pfnPerfSettingsSetPerformanceLevelEXT)));
+                                      (PFN_xrVoidFunction *) (&pfnPerfSettingsSetPerformanceLevelEXT)));
 
             // Set the CPU performance profile
             const Device::eCPUGPUPower cpu_power_target = Device::LVL_2_HIGH_POWER;
@@ -721,7 +794,7 @@ struct sOpenXR_Instance {
             PFN_xrSetAndroidApplicationThreadKHR pfnSetAndroidApplicationThreadKHR = NULL;
             OXR(xrGetInstanceProcAddr(xr_instance,
                                       "xrSetAndroidApplicationThreadKHR",
-                                      (PFN_xrVoidFunction*)(&pfnSetAndroidApplicationThreadKHR)));
+                                      (PFN_xrVoidFunction *) (&pfnSetAndroidApplicationThreadKHR)));
 
             OXR(pfnSetAndroidApplicationThreadKHR(xr_session,
                                                   XR_ANDROID_THREAD_TYPE_APPLICATION_MAIN_KHR,
@@ -736,8 +809,8 @@ struct sOpenXR_Instance {
     }
 
     void handle_events(Application::sAndroidState *app_state) {
-        for(;;) {
-            XrEventDataBaseHeader *base_header = (XrEventDataBaseHeader*) &xr_event_buffer;
+        for (;;) {
+            XrEventDataBaseHeader *base_header = (XrEventDataBaseHeader *) &xr_event_buffer;
             *base_header = {XR_TYPE_EVENT_DATA_BUFFER};
 
             XrResult res = xrPollEvent(xr_instance,
@@ -747,10 +820,11 @@ struct sOpenXR_Instance {
                 break;
             }
 
-            const XrEventDataSessionStateChanged* session_state_changed_event = (XrEventDataSessionStateChanged*) base_header;
+            const XrEventDataSessionStateChanged *session_state_changed_event = (XrEventDataSessionStateChanged *) base_header;
 
-            ALOGE("OpenXR event type:%i, but we want %i\n", base_header->type, XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED);
-            switch(base_header->type) {
+            ALOGE("OpenXR event type:%i, but we want %i\n", base_header->type,
+                  XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED);
+            switch (base_header->type) {
                 case XR_TYPE_EVENT_DATA_PERF_SETTINGS_EXT: // Change on perf setting
                     // TODO
                     break;
@@ -761,7 +835,7 @@ struct sOpenXR_Instance {
                     // TODO
                     break;
                 case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED: // Session changed
-                    switch(session_state_changed_event->state) {
+                    switch (session_state_changed_event->state) {
                         case XR_SESSION_STATE_FOCUSED:
                             app_state->focused = true;
                             break;
@@ -778,7 +852,8 @@ struct sOpenXR_Instance {
                             break;
                     }
                     break;
-                default: break;
+                default:
+                    break;
             }
         }
     }
@@ -824,7 +899,7 @@ struct sOpenXR_Instance {
                           xr_stage_space,
                           frame_state.predictedDisplayTime,
                           &space_location));
-        XrPosef pose_stage_from_head = space_location.pose;
+        //XrPosef pose_stage_from_head = space_location.pose;
 
         OXR(xrLocateSpace(xr_head_space,
                           xr_local_space,
@@ -859,23 +934,21 @@ struct sOpenXR_Instance {
         // Generate view projections
         for (int eye = 0; eye < MAX_EYE_NUMBER; eye++) {
             XrPosef xfHeadFromEye = eye_projections[eye].pose;
-            XrPosef xfStageFromEye = XrPosef_Multiply(pose_stage_from_head,
-                                                      xfHeadFromEye);
-            viewTransform[eye] = XrPosef_Inverse(xfStageFromEye);
 
-            transforms->view[eye] = XrMatrix4x4f_CreateFromRigidTransform(&viewTransform[eye]);
+            viewTransform[eye] = XrPosef_Inverse(xfHeadFromEye);
+
+            OpenXRHelpers::pose_to_glm_mat(viewTransform[eye],
+                                           &transforms->view[eye]);
 
             const XrFovf fov = eye_projections[eye].fov;
-            XrMatrix4x4f_CreateProjectionFov(&transforms->projection[eye],
-                                             GRAPHICS_OPENGL_ES,
-                                             fov,
-                                             0.01f,
-                                             10000.0f);
+            OpenXRHelpers::create_glm_projection(fov,
+                                                 0.01f,
+                                                 10000.0f,
+                                                 &transforms->projection[eye]);
 
+            transforms->viewprojection[eye] = glm::transpose(transforms->projection[eye] * glm::inverse(transforms->view[eye]));
+            // https://github.com/maluoi/OpenXRSamples/blob/master/SingleFileExample/main.cpp
 
-            XrMatrix4x4f_Multiply(&transforms->viewprojection[eye],
-                                  &transforms->projection[eye],
-                                  &transforms->view[eye]);
         }
     }
 
@@ -886,14 +959,15 @@ struct sOpenXR_Instance {
         projection_layer = {
                 .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION,
                 .next = NULL,
-                .layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT | XR_COMPOSITION_LAYER_CORRECT_CHROMATIC_ABERRATION_BIT,
+                .layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT |
+                              XR_COMPOSITION_LAYER_CORRECT_CHROMATIC_ABERRATION_BIT,
                 .space =  xr_stage_space,
                 .viewCount = MAX_EYE_NUMBER,
                 .views = projection_views
         };
 
         // Config projection layers
-        for(uint16_t i = 0; i < MAX_EYE_NUMBER; i++) {
+        for (uint16_t i = 0; i < MAX_EYE_NUMBER; i++) {
             memset(&projection_views[i],
                    0,
                    sizeof(XrCompositionLayerProjectionView));
@@ -909,7 +983,7 @@ struct sOpenXR_Instance {
                     .subImage = {
                             .swapchain = curr_framebuffers[i].swapchain_handle,
                             .imageRect = {
-                                    .offset = {0,0},
+                                    .offset = {0, 0},
                                     .extent = {
                                             .width = (int32_t) curr_framebuffers[i].width,
                                             .height = (int32_t) curr_framebuffers[i].height
@@ -921,7 +995,7 @@ struct sOpenXR_Instance {
         }
 
         // Add layers to the frame´s dispatch list
-        layers[layers_count++] =  (const XrCompositionLayerBaseHeader*) &projection_layer;
+        layers[layers_count++] = (const XrCompositionLayerBaseHeader *) &projection_layer;
 
         XrFrameEndInfo frame_end_info = {
                 .type = XR_TYPE_FRAME_END_INFO,

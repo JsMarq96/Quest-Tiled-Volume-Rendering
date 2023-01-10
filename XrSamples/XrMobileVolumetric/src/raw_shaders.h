@@ -24,7 +24,7 @@ void main() {
     v_world_position = world_pos.xyz;
     v_local_position = a_pos;
     v_uv = a_uv;
-    gl_Position = u_proj_mat * u_view_mat * world_pos;
+    gl_Position = u_vp_mat * world_pos;
     v_screen_position = ((gl_Position.xy / gl_Position.w) + 1.0) / 2.0;
 }
 )";

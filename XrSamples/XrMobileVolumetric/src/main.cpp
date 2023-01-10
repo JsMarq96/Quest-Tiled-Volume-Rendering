@@ -156,10 +156,6 @@ void android_main(struct android_app* app) {
 
     ApplicationLogic::config_render_pipeline(renderer);
 
-    glm::mat4x4 view_mats[MAX_EYE_NUMBER];
-    glm::mat4x4 projection_mats[MAX_EYE_NUMBER];
-    glm::mat4x4 viewprojection_mats[MAX_EYE_NUMBER];
-
     // Game Loop
     while (app->destroyRequested == 0) {
         // Read all pending android events
@@ -203,17 +199,11 @@ void android_main(struct android_app* app) {
                                        frame_transforms);
 
         // Render
-        view_mats[LEFT_EYE] = glm::make_mat4(frame_transforms.view[LEFT_EYE].m);
-        view_mats[RIGHT_EYE] = glm::make_mat4(frame_transforms.view[RIGHT_EYE].m);
-        projection_mats[LEFT_EYE] = glm::make_mat4(frame_transforms.projection[LEFT_EYE].m);
-        projection_mats[RIGHT_EYE] = glm::make_mat4(frame_transforms.projection[RIGHT_EYE].m);
-        viewprojection_mats[LEFT_EYE] = glm::make_mat4(frame_transforms.viewprojection[LEFT_EYE].m);
-        viewprojection_mats[RIGHT_EYE] = glm::make_mat4(frame_transforms.viewprojection[RIGHT_EYE].m);
 
         renderer.render_frame(true,
-                              view_mats,
-                              projection_mats,
-                              viewprojection_mats);
+                              frame_transforms.view,
+                              frame_transforms.projection,
+                              frame_transforms.viewprojection);
 
         openxr_instance.submit_frame();
         __android_log_print(ANDROID_LOG_VERBOSE, "Openxr test", "ending frame");
