@@ -57,9 +57,14 @@ namespace OpenXRHelpers {
     // From https://github.com/jherico/OpenXR-Samples/blob/master/src/examples/sdl2_gl_single_file_example.cpp
     inline void pose_to_glm_mat(const XrPosef &origin,
                                 glm::mat4x4 *result) {
-        glm::mat4 orientation = glm::mat4_cast(glm::make_quat(&origin.orientation.x));
+        glm::mat4 orientation = (glm::mat4_cast((glm::quat(origin.orientation.w,
+                                                           origin.orientation.x,
+                                                           origin.orientation.y,
+                                                           origin.orientation.z))));
         glm::mat4 translation = glm::translate(glm::mat4{1},
-                                               glm::make_vec3(&origin.position.x));
+                                               glm::vec3(origin.position.x,
+                                                         origin.position.y,
+                                                         origin.position.z));
         *result = translation * orientation;
     }
 
@@ -669,10 +674,14 @@ struct sOpenXR_Instance {
         };
 
         space_info.poseInReferenceSpace.orientation.w = 1.0f;
+        //space_info.poseInReferenceSpace.orientation.y = -0.51f;
+        //space_info.poseInReferenceSpace.orientation.x = 0.0f;
         OXR(xrCreateReferenceSpace(xr_session,
                                    &space_info,
                                    &xr_head_space));
 
+        //space_info.poseInReferenceSpace.orientation.w = 1.0f;
+        //space_info.poseInReferenceSpace.orientation.y = 0.0f;
         space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
         OXR(xrCreateReferenceSpace(xr_session,
                                    &space_info,
@@ -901,11 +910,6 @@ struct sOpenXR_Instance {
                           &space_location));
         XrPosef pose_stage_from_head = space_location.pose;
 
-        OXR(xrLocateSpace(xr_head_space,
-                          xr_local_space,
-                          frame_state.predictedDisplayTime,
-                          &space_location));
-
         // Get Projection ===
         XrViewLocateInfo projection_info = {
                 .type = XR_TYPE_VIEW_LOCATE_INFO,
@@ -944,7 +948,7 @@ struct sOpenXR_Instance {
             const XrFovf fov = eye_projections[eye].fov;
             OpenXRHelpers::create_glm_projection(fov,
                                                  0.01f,
-                                                 1000.0f,
+                                                 500.0f,
                                                  &transforms->projection[eye]);
 
             transforms->viewprojection[eye] = ( transforms->projection[eye] * (transforms->view[eye]));
