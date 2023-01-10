@@ -863,7 +863,7 @@ struct sOpenXR_Instance {
                 double *delta_time,
                 sFrameTransforms *transforms) {
         // Handle XR events
-        //handle_events(app_state);
+        handle_events(app_state);
 
         // get the predicted frametimes from OpenXR
         XrFrameWaitInfo waitFrameInfo = {};
@@ -899,7 +899,7 @@ struct sOpenXR_Instance {
                           xr_stage_space,
                           frame_state.predictedDisplayTime,
                           &space_location));
-        //XrPosef pose_stage_from_head = space_location.pose;
+        XrPosef pose_stage_from_head = space_location.pose;
 
         OXR(xrLocateSpace(xr_head_space,
                           xr_local_space,
@@ -934,8 +934,9 @@ struct sOpenXR_Instance {
         // Generate view projections
         for (int eye = 0; eye < MAX_EYE_NUMBER; eye++) {
             XrPosef xfHeadFromEye = eye_projections[eye].pose;
-
-            viewTransform[eye] = XrPosef_Inverse(xfHeadFromEye);
+            XrPosef xfStageFromEye = XrPosef_Multiply(pose_stage_from_head,
+                                                      xfHeadFromEye);
+            viewTransform[eye] = XrPosef_Inverse(xfStageFromEye);
 
             OpenXRHelpers::pose_to_glm_mat(viewTransform[eye],
                                            &transforms->view[eye]);
@@ -943,10 +944,10 @@ struct sOpenXR_Instance {
             const XrFovf fov = eye_projections[eye].fov;
             OpenXRHelpers::create_glm_projection(fov,
                                                  0.01f,
-                                                 10000.0f,
+                                                 1000.0f,
                                                  &transforms->projection[eye]);
 
-            transforms->viewprojection[eye] = glm::transpose(transforms->projection[eye] * glm::inverse(transforms->view[eye]));
+            transforms->viewprojection[eye] = ( transforms->projection[eye] * (transforms->view[eye]));
             // https://github.com/maluoi/OpenXRSamples/blob/master/SingleFileExample/main.cpp
 
         }
