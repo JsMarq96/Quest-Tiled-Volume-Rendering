@@ -61,11 +61,16 @@ namespace OpenXRHelpers {
                                                            origin.orientation.x,
                                                            origin.orientation.y,
                                                            origin.orientation.z))));
-        glm::mat4 translation = glm::translate(glm::mat4{1},
+        glm::mat4 translation = glm::translate(glm::mat4{1.0f},
                                                glm::vec3(origin.position.x,
                                                          origin.position.y,
                                                          origin.position.z));
-        *result = translation * orientation;
+
+        glm::mat4 scale = glm::scale(glm::mat4{1.0f},
+                                     glm::vec3(1.0f,
+                                               1.0f,
+                                               1.0f));
+        *result = translation * orientation * scale;
     }
 
     inline void create_glm_projection(const XrFovf &fov,
@@ -237,6 +242,7 @@ struct sOpenXR_Instance {
     XrSystemId xr_sys_id;
     XrSession xr_session;
     XrSpace xr_stage_space, xr_local_space, xr_head_space;
+    XrSpace xr_reference_space;
     bool space_stage_enabled = false;
     XrFrameState frame_state = {};
     sEglContext egl;
@@ -244,8 +250,6 @@ struct sOpenXR_Instance {
     XrEventDataBuffer xr_event_buffer = {};
 
     sOpenXRFramebuffer *curr_framebuffers;
-
-    XrPosef viewTransform[MAX_EYE_NUMBER];
 
     XrViewConfigurationView view_configs[MAX_EYE_NUMBER];
     XrViewConfigurationProperties view_config_prop;
@@ -689,17 +693,17 @@ struct sOpenXR_Instance {
 
         // Use a fake stage space
         space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
-        space_info.poseInReferenceSpace.position.y = -1.6750f;
+        //space_info.poseInReferenceSpace.position.y = -1.6750f;
         OXR(xrCreateReferenceSpace(xr_session,
                                    &space_info,
-                                   &xr_stage_space));
+                                   &xr_reference_space));
 
         if (space_stage_enabled) {
             space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE;
             space_info.poseInReferenceSpace.position.y = 0.0f;
             OXR(xrCreateReferenceSpace(xr_session,
                                        &space_info,
-                                       &xr_stage_space));
+                                       &xr_reference_space));
         }
 
     }
@@ -904,11 +908,11 @@ struct sOpenXR_Instance {
                 .type = XR_TYPE_SPACE_LOCATION,
                 .next = NULL
         };
-        OXR(xrLocateSpace(xr_head_space,
-                          xr_stage_space,
+        /*OXR(xrLocateSpace(xr_reference_space,
+                          xr_local_space,
                           frame_state.predictedDisplayTime,
-                          &space_location));
-        XrPosef pose_stage_from_head = space_location.pose;
+                          &space_location));*/
+        //XrPosef pose_stage_from_head = space_location.pose;
 
         // Get Projection ===
         XrViewLocateInfo projection_info = {
@@ -916,7 +920,7 @@ struct sOpenXR_Instance {
                 .next = NULL,
                 .viewConfigurationType = view_config_prop.viewConfigurationType,
                 .displayTime = frame_state.predictedDisplayTime,
-                .space = xr_head_space
+                .space = xr_reference_space
         };
 
         XrViewState view_state = {
@@ -937,13 +941,12 @@ struct sOpenXR_Instance {
 
         // Generate view projections
         for (int eye = 0; eye < MAX_EYE_NUMBER; eye++) {
-            XrPosef xfHeadFromEye = eye_projections[eye].pose;
-            XrPosef xfStageFromEye = XrPosef_Multiply(pose_stage_from_head,
-                                                      xfHeadFromEye);
-            viewTransform[eye] = XrPosef_Inverse(xfStageFromEye);
+            glm::mat4x4 view_eye = {}, view_stage = {};
+            OpenXRHelpers::pose_to_glm_mat(eye_projections[eye].pose,
+                                           &view_eye);
 
-            OpenXRHelpers::pose_to_glm_mat(viewTransform[eye],
-                                           &transforms->view[eye]);
+            OpenXRHelpers::pose_to_glm_mat(space_location.pose,
+                                           &view_stage);
 
             const XrFovf fov = eye_projections[eye].fov;
             OpenXRHelpers::create_glm_projection(fov,
@@ -951,7 +954,8 @@ struct sOpenXR_Instance {
                                                  500.0f,
                                                  &transforms->projection[eye]);
 
-            transforms->viewprojection[eye] = ( transforms->projection[eye] * (transforms->view[eye]));
+            transforms->view[eye] = glm::inverse(view_eye);
+            transforms->viewprojection[eye] = (transforms->projection[eye] * transforms->view[eye]);
             // https://github.com/maluoi/OpenXRSamples/blob/master/SingleFileExample/main.cpp
 
         }
@@ -966,7 +970,7 @@ struct sOpenXR_Instance {
                 .next = NULL,
                 .layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT |
                               XR_COMPOSITION_LAYER_CORRECT_CHROMATIC_ABERRATION_BIT,
-                .space =  xr_stage_space,
+                .space =  xr_reference_space,
                 .viewCount = MAX_EYE_NUMBER,
                 .views = projection_views
         };
@@ -983,7 +987,7 @@ struct sOpenXR_Instance {
             projection_views[i] = {
                     .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
                     .next = NULL,
-                    .pose = XrPosef_Inverse(viewTransform[i]),
+                    .pose = eye_projections[i].pose,
                     .fov = eye_projections[i].fov,
                     .subImage = {
                             .swapchain = curr_framebuffers[i].swapchain_handle,
