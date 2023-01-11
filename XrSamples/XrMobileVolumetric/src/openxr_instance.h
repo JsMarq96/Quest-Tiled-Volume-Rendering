@@ -671,13 +671,17 @@ struct sOpenXR_Instance {
         free(reference_spaces);
 
         // Create the reference spaces for the rendering
+        // https://gitlab.freedesktop.org/monado/demos/openxr-simple-example/-/blob/master/main.c
         XrReferenceSpaceCreateInfo space_info = {
                 .type = XR_TYPE_REFERENCE_SPACE_CREATE_INFO,
                 .next = NULL,
                 .referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW,
+                .poseInReferenceSpace = { .orientation = {0.0f, 0.0f, 0.0f, 1.0f},
+                                           .position = {0.0f, 0.0f, 0.0f}
+                                          }
         };
 
-        space_info.poseInReferenceSpace.orientation.w = 1.0f;
+        //space_info.poseInReferenceSpace.orientation.w = 1.0f;
         //space_info.poseInReferenceSpace.orientation.y = -0.51f;
         //space_info.poseInReferenceSpace.orientation.x = 0.0f;
         OXR(xrCreateReferenceSpace(xr_session,
