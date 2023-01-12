@@ -249,10 +249,14 @@ void Render::sInstance::render_frame(const bool clean_frame,
                                                view_mats[eye]);
                     shader.set_uniform_matrix4("u_proj_mat",
                                                proj_mats[eye]);
-                    //shader.set_uniform_vector("u_camera_eye_local", cam_pos); V estoe stamal
 
-                    glm::vec3 camera_local = glm::vec3(model_invert * glm::inverse(view_mats[eye]) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-                    __android_log_print(ANDROID_LOG_VERBOSE, "View", "x: %f %f %f", camera_local.x, camera_local.y, camera_local.z);
+                    glm::vec3 camera_local = glm::vec3( model_invert * glm::inverse(view_mats[eye]) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+                    __android_log_print(ANDROID_LOG_VERBOSE,
+                                        "View",
+                                        "x: %f %f %f",
+                                        camera_local.x,
+                                        camera_local.y,
+                                        camera_local.z);
                     shader.set_uniform_vector("u_camera_eye_local",
                                               camera_local);
                 }

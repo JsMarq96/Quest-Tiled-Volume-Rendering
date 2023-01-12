@@ -48,14 +48,19 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
     renderer.render_passes[render_pass].rgba_clear_values[3] = 1.0f;
 
     renderer.add_drawcall_to_pass(render_pass,
-                                  { .mesh_id = cube_mesh,
+                                  {.mesh_id = cube_mesh,
                                     .material_id = volumetric_material,
                                     .use_transform = true,
                                     .transform = {
                                           .position = {0.5f, 1.0f, -0.50f},
                                           .scale = {0.50f, 0.50f, 0.50f}
-                                          },
-                                    .call_state = { .depth_test_enabled = false, .write_to_depth_buffer = true, .culling_enabled = false},
+                                    },
+                                    .call_state = {
+                                          .depth_test_enabled = false,
+                                          .write_to_depth_buffer = true,
+                                          .culling_enabled = true,
+                                          .culling_mode = GL_FRONT
+                                    },
                                     .enabled = true });
 }
 

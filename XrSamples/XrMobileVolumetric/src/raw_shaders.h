@@ -111,39 +111,40 @@ out vec4 o_frag_color;
 uniform vec3 u_camera_eye_local;
 uniform highp sampler3D u_volume_map;
 const int MAX_ITERATIONS = 100;
-const float STEP_SIZE = 0.02;
+const float STEP_SIZE = 0.01;
 vec4 render_volume() {
-   vec3 ray_dir = normalize(v_local_position - u_camera_eye_local);
-   vec3 it_pos = vec3(0.0);
+   vec3 ray_dir = normalize(u_camera_eye_local - v_local_position);
+   vec3 it_pos = v_local_position;
    vec4 final_color = vec4(0.0);
    float ray_step = 1.0 / float(MAX_ITERATIONS);
-    //return vec4(ray_dir, 1.0);
-   // TODO: optimize iterations size, and step size
-   for(int i = 0; i < MAX_ITERATIONS; i++) {
-      if (final_color.a >= 0.95) {
-         break;
-      }
-      vec3 sample_pos = ((v_local_position + it_pos));
-      // Aboid clipping outside
-      if (sample_pos.x < 0.0 || sample_pos.y < 0.0 || sample_pos.z < 0.0) {
-         break;
-      }
-      if (sample_pos.x > 1.0 || sample_pos.y > 1.0 || sample_pos.z > 1.0) {
-         break;
-      }
-      float depth = texture(u_volume_map, sample_pos).r;
-      // Increase luminosity, only on the colors
-      vec4 sample_color = vec4(04.6 * depth);
-      sample_color.a = depth;
-      final_color = final_color + (STEP_SIZE * (1.0 - final_color.a) * sample_color);
-      it_pos = it_pos + (STEP_SIZE * ray_dir);
-   }
-   return vec4(final_color.xyz, 1.0);
+
+    int i = 0;
+    for(; i < MAX_ITERATIONS; i++) {
+        if (final_color.a >= 0.95) {
+            break;
+        }
+        // Aboid clipping outside
+        if (it_pos.x < 0.0 || it_pos.y < 0.0 || it_pos.z < 0.0) {
+            //break;
+        }
+        if (it_pos.x > 1.0 || it_pos.y > 1.0 || it_pos.z > 1.0) {
+            //break;
+        }
+        float depth = texture(u_volume_map, it_pos).r;
+        // Increase luminosity, only on the colors
+        vec4 sample_color = vec4(04.6 * depth);
+        sample_color.a = depth;
+        final_color = final_color + (STEP_SIZE * (1.0 - final_color.a) * sample_color);
+        it_pos = it_pos + (STEP_SIZE * ray_dir);
+    }
+
+    //return vec4(vec3(i / MAX_ITERATIONS), 1.0);
+    return vec4(final_color.xyz, 1.0);
 }
 void main() {
    //o_frag_color = v_local_position;
-   o_frag_color = render_volume(); //*
-   //o_frag_color = vec4(u_camera_eye_local, 1.0);
+   o_frag_color = render_volume();
+   //o_frag_color = vec4(normalize(u_camera_eye_local - v_local_position), 1.0);
    //o_frag_color = texture(u_frame_color_attachment, v_screen_position);
 }
 )";
