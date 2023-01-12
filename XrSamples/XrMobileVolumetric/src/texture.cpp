@@ -150,13 +150,15 @@ void sTexture::load(const eTextureType text_type,
 }
 
 
-void sTexture::load3D(const char* texture_name,
-                      const uint16_t width_i,
-                      const uint16_t heigth_i,
-                      const uint16_t depth_i) {
+void sTexture::load3D_monochrome(const char* texture_name,
+                                 const uint16_t width_i,
+                                 const uint16_t heigth_i,
+                                 const uint16_t depth_i) {
     store_on_RAM = false;
     type = VOLUME;
-    int w = 0, h = 0;
+    width = width_i;
+    height = heigth_i;
+    depth = depth_i;
     //text->raw_data = stbi_load(texture_name, &w, &h, &l, 0);
 
 #ifndef __EMSCRIPTEN__
@@ -173,7 +175,7 @@ void sTexture::load3D(const char* texture_name,
           SEEK_SET);
 
     raw_data = (char*) malloc(file_size + 1);
-    raw_data[file_size] = '\0';
+    //raw_data[file_size] = '\0';
 
     fread(raw_data,
           file_size,
@@ -185,8 +187,7 @@ void sTexture::load3D(const char* texture_name,
     l = 4;
 #endif
 
-    width = w;
-    height = h;
+
 
     assert(raw_data != NULL && "Uploading empty texture to GPU");
 
@@ -204,12 +205,12 @@ void sTexture::load3D(const char* texture_name,
 
     glTexImage3D(GL_TEXTURE_3D,
                  0,
-                 GL_RGBA,
-                 width / width_i,
-                 height / heigth_i,
-                 width / width_i,
+                 GL_R8,
+                 width,
+                 height,
+                 depth,
                  0,
-                 GL_RGBA,
+                 GL_RED,
                  GL_UNSIGNED_BYTE,
                  raw_data);
 

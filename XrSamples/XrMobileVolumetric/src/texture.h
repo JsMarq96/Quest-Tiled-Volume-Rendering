@@ -37,10 +37,10 @@ struct sTexture {
               const bool store_on_RAM,
               const char *texture_name);
 
-    void load3D(const char *texture_name,
-                const uint16_t width,
-                const uint16_t heigth,
-                const uint16_t depth);
+    void load3D_monochrome(const char *texture_name,
+                           const uint16_t width,
+                           const uint16_t heigth,
+                           const uint16_t depth);
 
     // Loads the texture configuration to opengl
     void config(const uint32_t texture_type,

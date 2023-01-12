@@ -83,7 +83,7 @@ namespace OpenXRHelpers {
         const float tanAngleDown = tanf(fov.angleDown);
 
         const float tanAngleWidth = tanAngleRight - tanAngleLeft;
-        const float tanAngleHeight = (tanAngleDown - tanAngleUp);
+        const float tanAngleHeight = (tanAngleUp - tanAngleDown );
         const float offsetZ = 0;
 
         float *result_as_arr = (float *) &result[0][0];
@@ -684,27 +684,19 @@ struct sOpenXR_Instance {
         //space_info.poseInReferenceSpace.orientation.w = 1.0f;
         //space_info.poseInReferenceSpace.orientation.y = -0.51f;
         //space_info.poseInReferenceSpace.orientation.x = 0.0f;
-        OXR(xrCreateReferenceSpace(xr_session,
-                                   &space_info,
-                                   &xr_head_space));
 
-        //space_info.poseInReferenceSpace.orientation.w = 1.0f;
-        //space_info.poseInReferenceSpace.orientation.y = 0.0f;
-        space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
-        OXR(xrCreateReferenceSpace(xr_session,
-                                   &space_info,
-                                   &xr_local_space));
 
-        // Use a fake stage space
-        space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
-        //space_info.poseInReferenceSpace.position.y = -1.6750f;
-        OXR(xrCreateReferenceSpace(xr_session,
-                                   &space_info,
-                                   &xr_reference_space));
 
         if (space_stage_enabled) {
             space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE;
             space_info.poseInReferenceSpace.position.y = 0.0f;
+            OXR(xrCreateReferenceSpace(xr_session,
+                                       &space_info,
+                                       &xr_reference_space));
+        } else {
+            // Use a fake stage space
+            space_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
+            space_info.poseInReferenceSpace.position.y = -1.6750f;
             OXR(xrCreateReferenceSpace(xr_session,
                                        &space_info,
                                        &xr_reference_space));
@@ -984,9 +976,6 @@ struct sOpenXR_Instance {
             memset(&projection_views[i],
                    0,
                    sizeof(XrCompositionLayerProjectionView));
-            memset(&projection_views[i].subImage,
-                   0,
-                   sizeof(XrSwapchainSubImage));
 
             projection_views[i] = {
                     .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,

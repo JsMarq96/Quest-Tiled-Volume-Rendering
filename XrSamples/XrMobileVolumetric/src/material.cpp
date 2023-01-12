@@ -85,11 +85,10 @@ uint8_t sMaterialManager::add_volume_texture(const char* text_dir,
                                    const uint16_t tile_depth) {
     uint8_t texture_id = texture_count++;
     //enabled_textures[VOLUME_MAP] = true;
-    //assert(false && "TODO add volume texture from drive to material manager");
-    textures[texture_id].load3D(text_dir,
-                                tile_width,
-                                tile_heigth,
-                                tile_depth);
+    textures[texture_id].load3D_monochrome(text_dir,
+                                           tile_width,
+                                           tile_heigth,
+                                           tile_depth);
     return texture_id;
 }
 
