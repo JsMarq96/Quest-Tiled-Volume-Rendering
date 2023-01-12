@@ -113,16 +113,17 @@ uniform highp sampler3D u_volume_map;
 const int MAX_ITERATIONS = 100;
 const float STEP_SIZE = 0.02;
 vec4 render_volume() {
-   vec3 ray_dir = normalize(u_camera_eye_local - v_local_position);
+   vec3 ray_dir = normalize(v_local_position - u_camera_eye_local);
    vec3 it_pos = vec3(0.0);
    vec4 final_color = vec4(0.0);
    float ray_step = 1.0 / float(MAX_ITERATIONS);
+    //return vec4(ray_dir, 1.0);
    // TODO: optimize iterations size, and step size
    for(int i = 0; i < MAX_ITERATIONS; i++) {
       if (final_color.a >= 0.95) {
          break;
       }
-      vec3 sample_pos = ((v_local_position - it_pos));
+      vec3 sample_pos = ((v_local_position + it_pos));
       // Aboid clipping outside
       if (sample_pos.x < 0.0 || sample_pos.y < 0.0 || sample_pos.z < 0.0) {
          break;
@@ -142,7 +143,7 @@ vec4 render_volume() {
 void main() {
    //o_frag_color = v_local_position;
    o_frag_color = render_volume(); //*
-   //o_frag_color = vec4(v_local_position / 2.0 + 0.5, 1.0);
+   //o_frag_color = vec4(u_camera_eye_local, 1.0);
    //o_frag_color = texture(u_frame_color_attachment, v_screen_position);
 }
 )";

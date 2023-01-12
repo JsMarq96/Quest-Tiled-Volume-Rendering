@@ -3,6 +3,7 @@
 #include "texture.h"
 #include <cstdint>
 
+#include <android/log.h>
 
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_float4x4.hpp"
@@ -193,10 +194,9 @@ void Render::sInstance::render_frame(const bool clean_frame,
                                      const glm::mat4x4 *view_mats,
                                      const glm::mat4x4 *proj_mats,
                                      const glm::mat4x4 *viewproj_mats) {
+    __android_log_print(ANDROID_LOG_VERBOSE, "View", "-------------------------------");
     for(uint16_t eye = 0; eye < MAX_EYE_NUMBER; eye++) {
-        const glm::vec3 camera_pos = glm::vec3(view_mats[eye][0][3],
-                                               view_mats[eye][1][3],
-                                               view_mats[eye][2][3]);
+
         for(uint16_t j = 0; j < render_pass_size; j++) {
             sRenderPass &pass = render_passes[j];
 
@@ -250,8 +250,11 @@ void Render::sInstance::render_frame(const bool clean_frame,
                     shader.set_uniform_matrix4("u_proj_mat",
                                                proj_mats[eye]);
                     //shader.set_uniform_vector("u_camera_eye_local", cam_pos); V estoe stamal
+
+                    glm::vec3 camera_local = glm::vec3(model_invert * glm::inverse(view_mats[eye]) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+                    __android_log_print(ANDROID_LOG_VERBOSE, "View", "x: %f %f %f", camera_local.x, camera_local.y, camera_local.z);
                     shader.set_uniform_vector("u_camera_eye_local",
-                                              glm::vec3(viewproj_mats[eye] * glm::vec4(camera_pos, 1.0f)));
+                                              camera_local);
                 }
 
 

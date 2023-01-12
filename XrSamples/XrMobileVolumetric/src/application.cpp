@@ -16,7 +16,7 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
 
     // Create shaders
     const uint8_t volume_shader = renderer.material_man.add_raw_shader(RawShaders::basic_vertex,
-                                                                       RawShaders::volumetric_fragment);
+                                                                       RawShaders::volumetric_fragment_outside);
     //const uint8_t plaincolor_shader = renderer.material_man.add_raw_shader(RawShaders::basic_vertex,
     //                                                                        RawShaders::basic_fragment);
 

@@ -83,7 +83,7 @@ namespace OpenXRHelpers {
         const float tanAngleDown = tanf(fov.angleDown);
 
         const float tanAngleWidth = tanAngleRight - tanAngleLeft;
-        const float tanAngleHeight = (tanAngleUp - tanAngleDown );
+        const float tanAngleHeight = (tanAngleDown - tanAngleUp ); // (tanAngleUp  - tanAngleDown)
         const float offsetZ = 0;
 
         float *result_as_arr = (float *) &result[0][0];
@@ -259,6 +259,7 @@ struct sOpenXR_Instance {
 
     XrCompositionLayerProjectionView projection_views[MAX_EYE_NUMBER];
     XrCompositionLayerProjection projection_layer;
+    XrCompositionLayerImageLayoutFB projection_correction;
 
     const XrCompositionLayerBaseHeader *layers[10];
     uint8_t layers_count = 0;
@@ -301,11 +302,12 @@ struct sOpenXR_Instance {
                                                    extensionProperties));
 
 
-        uint32_t extension_count = 3; // TODO just the necessary extesions
+        uint32_t extension_count = 9;// TODO just the necessary extesions
         const char *enabled_extensions[12] = {
                 XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME,
                 XR_EXT_PERFORMANCE_SETTINGS_EXTENSION_NAME,
                 XR_KHR_ANDROID_THREAD_SETTINGS_EXTENSION_NAME,
+                XR_FB_COMPOSITION_LAYER_IMAGE_LAYOUT_EXTENSION_NAME,
                 XR_FB_SWAPCHAIN_UPDATE_STATE_EXTENSION_NAME,
                 XR_FB_SWAPCHAIN_UPDATE_STATE_OPENGL_ES_EXTENSION_NAME,
                 XR_FB_FOVEATION_EXTENSION_NAME,
@@ -960,10 +962,15 @@ struct sOpenXR_Instance {
     void submit_frame() {
         // Generate layers
         layers_count = 0;
-        // Projection layer
+        // Projection layer correction
+        projection_correction = {
+                .type = XR_TYPE_COMPOSITION_LAYER_IMAGE_LAYOUT_FB,
+                .next = NULL,
+                .flags = XR_COMPOSITION_LAYER_IMAGE_LAYOUT_VERTICAL_FLIP_BIT_FB
+        };
         projection_layer = {
                 .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION,
-                .next = NULL,
+                .next = &projection_correction,
                 .layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT |
                               XR_COMPOSITION_LAYER_CORRECT_CHROMATIC_ABERRATION_BIT,
                 .space =  xr_reference_space,
