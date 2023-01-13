@@ -8,6 +8,7 @@
 #include <GLES3/gl3.h>
 #endif
 
+#include <stb_image.h>
 #include <cstdlib>
 
 void upload_simple_texture_to_GPU(sTexture *text);
@@ -88,15 +89,14 @@ void sTexture::load(const eTextureType text_type,
 
         return;
     }
-    int w = 0, h = 0;
-    //text->raw_data = stbi_load(texture_name, &w, &h, &l, 0);
+    int w = 0, h = 0, l = 0;
 
 #ifndef __EMSCRIPTEN__
-    /*raw_data = (char*) stbi_load(texture_name,
+    raw_data = (char*) stbi_load(texture_name,
                                  &w,
                                  &h,
                                  &l,
-                                 0);*/
+                                 0);
 #else
     raw_data = emscripten_get_preloaded_image_data(texture_name, &w, &h);
     l = 4;
