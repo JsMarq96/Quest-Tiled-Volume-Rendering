@@ -31,10 +31,21 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
                                                                             256);
     free(volume_tex_dir);
 
+    // Load the blue noise texutre
+    char *blue_noise_tex_dir = NULL;
+    Assets::get_asset_dir("assets/blueNoise.png",
+                          &blue_noise_tex_dir);
+
+    const uint8_t blue_noise_texture = renderer.material_man.add_texture(blue_noise_tex_dir);
+
     // Create materials
     const uint8_t volumetric_material = renderer.material_man.add_material(volume_shader,
-                                                                           {  .volume_tex = volume_texture,
-                                                                              .enabled_volume = true });
+                                                                           {
+                                                                                .color_tex = blue_noise_texture,
+                                                                                .volume_tex = volume_texture,
+                                                                                .enabled_color = true,
+                                                                                .enabled_volume = true
+                                                                           });
 
 
     // Create the render pipeline

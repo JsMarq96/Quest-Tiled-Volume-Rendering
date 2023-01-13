@@ -157,27 +157,35 @@ in vec3 v_world_position;
 in vec3 v_local_position;
 in vec2 v_screen_position;
 out vec4 o_frag_color;
+
+uniform float u_time;
 uniform vec3 u_camera_eye_local;
 uniform highp sampler3D u_volume_map;
+uniform highp sampler2D u_albedo_map; // Noise texture
 uniform highp float u_density_threshold;
-const int MAX_ITERATIONS = 100;
-const float STEP_SIZE = 0.02;
 
-const float DELTA = 0.0001;
+const int MAX_ITERATIONS = 250;
+const float STEP_SIZE = 0.005;
+const int NOISE_TEX_WIDTH = 64;
+
+const float DELTA = 0.003;
 const vec3 DELTA_X = vec3(DELTA, 0.0, 0.0);
 const vec3 DELTA_Y = vec3(0.0, DELTA, 0.0);
 const vec3 DELTA_Z = vec3(0.0, 0.0, DELTA);
+
 vec3 gradient(in vec3 pos) {
     float x = texture(u_volume_map, pos + DELTA_X).r - texture(u_volume_map, pos - DELTA_X).r;
     float y = texture(u_volume_map, pos + DELTA_Y).r - texture(u_volume_map, pos - DELTA_Y).r;
     float z = texture(u_volume_map, pos + DELTA_Z).r - texture(u_volume_map, pos - DELTA_Z).r;
 
-    return normalize(vec3(x, y, z));
+    return normalize(vec3(x, y, z) / vec3(DELTA * 2.0));
 }
 
 vec4 render_volume() {
     vec3 ray_dir = normalize(v_local_position - u_camera_eye_local);
-    vec3 it_pos = v_local_position + ray_dir * 0.01;
+    vec3 it_pos = v_local_position;
+    // Add jitter
+    it_pos = it_pos + ray_dir * (texture(u_albedo_map, gl_FragCoord.xy / vec2(NOISE_TEX_WIDTH)).rgb * 0.003);
     vec4 final_color = vec4(0.0);
     float ray_step = 1.0 / float(MAX_ITERATIONS);
 
@@ -203,7 +211,7 @@ vec4 render_volume() {
    return vec4(vec3(0.0), 1.0);
 }
 void main() {
-   //o_frag_color = v_local_position;
+   //o_frag_color = texture(u_albedo_map, gl_FragCoord.xy / vec2(NOISE_TEX_WIDTH));
    o_frag_color = render_volume(); //*
    //o_frag_color = vec4(v_local_position / 2.0 + 0.5, 1.0);
    //o_frag_color = texture(u_frame_color_attachment, v_screen_position);

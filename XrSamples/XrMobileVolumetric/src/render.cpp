@@ -189,6 +189,14 @@ void Render::sInstance::change_graphic_state(const sGLState &new_state) {
         current_state.blend_func_y = new_state.blend_func_y;
     }
 }
+
+double get_time() {
+    struct timespec res;
+    clock_gettime(CLOCK_REALTIME, &res);
+    return 1000.0 * res.tv_sec + (double) res.tv_nsec / 1e6;
+
+}
+
 // https://gitlab.freedesktop.org/monado/demos/xrgears/-/blob/master/src/pipeline_equirect.cpp#L282
 void Render::sInstance::render_frame(const bool clean_frame,
                                      const glm::mat4x4 *view_mats,
@@ -260,6 +268,9 @@ void Render::sInstance::render_frame(const bool clean_frame,
                     shader.set_uniform_vector("u_camera_eye_local",
                                               camera_local);
                 }
+
+                shader.set_uniform("u_time",
+                                   (float) get_time());
 
 
                 if (mesh.is_indexed) {

@@ -3,6 +3,7 @@
 
 #include <GLES3/gl3.h>
 #include <cstdint>
+#include <time.h>
 #ifndef __EMSCRIPTEN__
 #include <GLES3/gl3.h>
 #endif
