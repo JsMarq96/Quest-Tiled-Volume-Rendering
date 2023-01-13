@@ -65,7 +65,7 @@ struct sMaterialInstance {
 
 struct sMaterialManager {
     // For isosurface rendering; a global setting.. ?
-    float density_threshold = 0.005f;
+    float density_threshold = 0.1f;
 
     sTexture        textures[MAX_TEXTURE_COUNT];
     uint8_t         texture_count = 0;

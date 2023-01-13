@@ -113,8 +113,8 @@ uniform highp sampler3D u_volume_map;
 const int MAX_ITERATIONS = 100;
 const float STEP_SIZE = 0.01;
 vec4 render_volume() {
-   vec3 ray_dir = normalize(u_camera_eye_local - v_local_position);
-   vec3 it_pos = v_local_position;
+   vec3 ray_dir = normalize(v_local_position - u_camera_eye_local);
+   vec3 it_pos = v_local_position + ray_dir * 0.0001; // Start a bit further than the border
    vec4 final_color = vec4(0.0);
    float ray_step = 1.0 / float(MAX_ITERATIONS);
 
@@ -123,12 +123,12 @@ vec4 render_volume() {
         if (final_color.a >= 0.95) {
             break;
         }
-        // Aboid clipping outside
+        // Avoid going outside the texture
         if (it_pos.x < 0.0 || it_pos.y < 0.0 || it_pos.z < 0.0) {
-            //break;
+            break;
         }
         if (it_pos.x > 1.0 || it_pos.y > 1.0 || it_pos.z > 1.0) {
-            //break;
+            break;
         }
         float depth = texture(u_volume_map, it_pos).r;
         // Increase luminosity, only on the colors
@@ -162,27 +162,40 @@ uniform highp sampler3D u_volume_map;
 uniform highp float u_density_threshold;
 const int MAX_ITERATIONS = 100;
 const float STEP_SIZE = 0.02;
+
+const float DELTA = 0.0001;
+const vec3 DELTA_X = vec3(DELTA, 0.0, 0.0);
+const vec3 DELTA_Y = vec3(0.0, DELTA, 0.0);
+const vec3 DELTA_Z = vec3(0.0, 0.0, DELTA);
+vec3 gradient(in vec3 pos) {
+    float x = texture(u_volume_map, pos + DELTA_X).r - texture(u_volume_map, pos - DELTA_X).r;
+    float y = texture(u_volume_map, pos + DELTA_Y).r - texture(u_volume_map, pos - DELTA_Y).r;
+    float z = texture(u_volume_map, pos + DELTA_Z).r - texture(u_volume_map, pos - DELTA_Z).r;
+
+    return normalize(vec3(x, y, z));
+}
+
 vec4 render_volume() {
-   vec3 ray_dir = normalize(u_camera_eye_local - v_local_position);
-   vec3 it_pos = vec3(0.0);
-   vec4 final_color = vec4(0.0);
-   float ray_step = 1.0 / float(MAX_ITERATIONS);
-   // TODO: optimize iterations size, and step size
-   for(int i = 0; i < MAX_ITERATIONS; i++) {
-      if (final_color.a >= 0.95) {
-         break;
-      }
-      vec3 sample_pos = ((v_local_position - it_pos));
-      // Aboid clipping outside
-      if (sample_pos.x < 0.0 || sample_pos.y < 0.0 || sample_pos.z < 0.0) {
-         break;
-      }
-      if (sample_pos.x > 1.0 || sample_pos.y > 1.0 || sample_pos.z > 1.0) {
-         break;
-      }
-      float depth = texture(u_volume_map, sample_pos).r;
-      if (u_density_threshold <= depth) {
-         return vec4(1.0);
+    vec3 ray_dir = normalize(v_local_position - u_camera_eye_local);
+    vec3 it_pos = v_local_position + ray_dir * 0.01;
+    vec4 final_color = vec4(0.0);
+    float ray_step = 1.0 / float(MAX_ITERATIONS);
+
+    int i = 0;
+    for(; i < MAX_ITERATIONS; i++) {
+        if (final_color.a >= 0.95) {
+            break;
+        }
+        // Avoid going outside the texture
+        if (it_pos.x < 0.0 || it_pos.y < 0.0 || it_pos.z < 0.0) {
+            break;
+        }
+        if (it_pos.x > 1.0 || it_pos.y > 1.0 || it_pos.z > 1.0) {
+            break;
+        }
+        float depth = texture(u_volume_map, it_pos).r;
+        if (u_density_threshold <= depth) {
+            return vec4(gradient(it_pos), 1.0);
       }
 
       it_pos = it_pos + (STEP_SIZE * ray_dir);

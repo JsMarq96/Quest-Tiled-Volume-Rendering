@@ -3,6 +3,7 @@
 #ifndef __EMSCRIPTEN__
 
 #include <GLES3/gl3.h>
+#include <android/log.h>
 #else
 #include <webgl/webgl2.h>
 #endif
@@ -28,7 +29,9 @@ sShader::sShader(const char* vertex_shader_raw,
 
     if (!compile_successs) {
         glGetShaderInfoLog(vertex_id, 512, NULL, compile_log);
-        std::cout << compile_log << std::endl;
+        __android_log_print(ANDROID_LOG_ERROR,
+                            "Shader",
+                            "%s", compile_log);
         assert(">>>>>Error comiling vertex shader" && false);
     }
 
@@ -40,7 +43,9 @@ sShader::sShader(const char* vertex_shader_raw,
 
     if (!compile_successs) {
         glGetShaderInfoLog(fragment_id, 512, NULL, compile_log);
-        std::cout << compile_log << std::endl;
+        __android_log_print(ANDROID_LOG_ERROR,
+                            "Shader",
+                            "%s", compile_log);
         assert(">>>>>Error comiling fragment shader" && false);
     }
 
@@ -53,7 +58,9 @@ sShader::sShader(const char* vertex_shader_raw,
 
     if (!compile_successs) {
         glGetProgramInfoLog(ID, 512, NULL, compile_log);
-        std::cout << compile_log << std::endl;
+        __android_log_print(ANDROID_LOG_ERROR,
+                            "Shader",
+                            "%s", compile_log);
         assert(">>>>>Shader Linking error" && false);
     }
 
@@ -118,6 +125,9 @@ void sShader::load_shaders(const char*   vertex_shader_raw,
 
     if (!compile_successs) {
         glGetShaderInfoLog(vertex_id, 512, NULL, compile_log);
+        __android_log_print(ANDROID_LOG_ERROR,
+                            "Shader",
+                            "%s", compile_log);
         assert(">>>>>Error comiling vertex shader" && false);
     }
 
@@ -129,7 +139,9 @@ void sShader::load_shaders(const char*   vertex_shader_raw,
 
     if (!compile_successs) {
         glGetShaderInfoLog(fragment_id, 512, NULL, compile_log);
-        std::cout << compile_log << std::endl;
+        __android_log_print(ANDROID_LOG_ERROR,
+                            "Shader",
+                            "%s", compile_log);
         assert(">>>>>Error comiling fragment shader" && false);
     }
 
@@ -142,7 +154,9 @@ void sShader::load_shaders(const char*   vertex_shader_raw,
 
     if (!compile_successs) {
         glGetProgramInfoLog(ID, 512, NULL, compile_log);
-        std::cout << compile_log << std::endl;
+        __android_log_print(ANDROID_LOG_ERROR,
+                            "Shader",
+                            "%s", compile_log);
         assert(">>>>>Shader Linking error" && false);
     }
 
