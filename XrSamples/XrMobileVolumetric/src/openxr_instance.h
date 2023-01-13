@@ -796,7 +796,7 @@ struct sOpenXR_Instance {
                                                       XR_PERF_SETTINGS_DOMAIN_CPU_EXT,
                                                       (XrPerfSettingsLevelEXT) cpu_power_target));
             // Set the GPU performance profile
-            const Device::eCPUGPUPower gpu_power_target = Device::LVL_2_HIGH_POWER;
+            const Device::eCPUGPUPower gpu_power_target = Device::LVL_3_BOOST;
             OXR(pfnPerfSettingsSetPerformanceLevelEXT(xr_session,
                                                       XR_PERF_SETTINGS_DOMAIN_GPU_EXT,
                                                       (XrPerfSettingsLevelEXT) gpu_power_target));

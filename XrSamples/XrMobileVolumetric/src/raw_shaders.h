@@ -164,9 +164,9 @@ uniform highp sampler3D u_volume_map;
 uniform highp sampler2D u_albedo_map; // Noise texture
 uniform highp float u_density_threshold;
 
-const int MAX_ITERATIONS = 250;
-const float STEP_SIZE = 0.005;
-const int NOISE_TEX_WIDTH = 64;
+const int MAX_ITERATIONS = 350;
+const float STEP_SIZE = 0.007; // 0.004 ideal for quality
+const int NOISE_TEX_WIDTH = 100;
 
 const float DELTA = 0.003;
 const vec3 DELTA_X = vec3(DELTA, 0.0, 0.0);
@@ -185,9 +185,9 @@ vec4 render_volume() {
     vec3 ray_dir = normalize(v_local_position - u_camera_eye_local);
     vec3 it_pos = v_local_position;
     // Add jitter
-    it_pos = it_pos + ray_dir * (texture(u_albedo_map, gl_FragCoord.xy / vec2(NOISE_TEX_WIDTH)).rgb * 0.003);
+    vec3 jitter_addition = ray_dir * (texture(u_albedo_map, gl_FragCoord.xy / vec2(NOISE_TEX_WIDTH)).rgb * STEP_SIZE);
+    it_pos = it_pos + jitter_addition;
     vec4 final_color = vec4(0.0);
-    float ray_step = 1.0 / float(MAX_ITERATIONS);
 
     int i = 0;
     for(; i < MAX_ITERATIONS; i++) {
@@ -203,7 +203,7 @@ vec4 render_volume() {
         }
         float depth = texture(u_volume_map, it_pos).r;
         if (u_density_threshold <= depth) {
-            return vec4(gradient(it_pos), 1.0);
+            return vec4(gradient(it_pos - jitter_addition), 1.0);
       }
 
       it_pos = it_pos + (STEP_SIZE * ray_dir);

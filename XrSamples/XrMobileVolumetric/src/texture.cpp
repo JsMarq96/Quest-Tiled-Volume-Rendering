@@ -200,9 +200,6 @@ void sTexture::load3D_monochrome(const char* texture_name,
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_MIRRORED_REPEAT);
 
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
     glTexImage3D(GL_TEXTURE_3D,
                  0,
                  GL_R8,
@@ -213,6 +210,12 @@ void sTexture::load3D_monochrome(const char* texture_name,
                  GL_RED,
                  GL_UNSIGNED_BYTE,
                  raw_data);
+
+    glGenerateMipmap(GL_TEXTURE_3D);
+
+
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
     glBindTexture(GL_TEXTURE_3D, 0);
 
