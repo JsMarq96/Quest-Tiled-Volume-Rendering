@@ -170,7 +170,7 @@ void android_main(struct android_app* app) {
 
     ApplicationLogic::config_render_pipeline(renderer);
 
-    uint64_t start_render, end_render;
+    uint64_t start_render;
     uint32_t gl_time_queries[4];
 #define START_RENDER 0
 #define END_RENDER 1
@@ -227,37 +227,34 @@ void android_main(struct android_app* app) {
         glGetIntegerv(GL_GPU_DISJOINT_EXT,
                       &disjoint_occurred);
         // Render (& timing)
-        glQueryCounterEXT_(gl_time_queries[START_RENDER],
-                           GL_TIMESTAMP_EXT);
+        glBeginQueryEXT_(GL_TIME_ELAPSED_EXT,
+                         gl_time_queries[START_RENDER]);
 
         renderer.render_frame(true,
                               frame_transforms.view,
                               frame_transforms.projection,
                               frame_transforms.viewprojection);
 
-        glQueryCounterEXT_(gl_time_queries[END_RENDER],
-                           GL_TIMESTAMP_EXT);
+        glEndQueryEXT_(GL_TIME_ELAPSED_EXT);
 
         openxr_instance.submit_frame();
-
 
         // Query processing ===========================================
         int available = 0;
         while (!available) {
-            glGetQueryObjectivEXT_(gl_time_queries[END_RENDER], GL_QUERY_RESULT_AVAILABLE, &available);
+            glGetQueryObjectivEXT_(gl_time_queries[START_RENDER], GL_QUERY_RESULT_AVAILABLE, &available);
         }
-
-        glGetQueryObjectui64vEXT_(gl_time_queries[START_RENDER], GL_QUERY_RESULT, &start_render);
-        glGetQueryObjectui64vEXT_(gl_time_queries[END_RENDER], GL_QUERY_RESULT, &end_render);
 
 
         glGetIntegerv(GL_GPU_DISJOINT_EXT,
                       &disjoint_occurred);
         if (!disjoint_occurred) {
+            glGetQueryObjectui64vEXT_(gl_time_queries[START_RENDER], GL_QUERY_RESULT, &start_render);
+
             __android_log_print(ANDROID_LOG_VERBOSE,
                                 "FRAME_STATS",
                                 "Render time: %f",
-                                ((double) end_render - (double)start_render) / 1000000.0);
+                                ((double)start_render) / 1000000.0);
         } else {
             __android_log_print(ANDROID_LOG_VERBOSE, "FRAME_STATS", "Render time: invalid");
         }
