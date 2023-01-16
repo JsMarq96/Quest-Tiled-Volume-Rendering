@@ -7,6 +7,42 @@
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <GLES3/gl3.h>
+#include <GLES3/gl3ext.h>
+#include <android/log.h>
+#include <android/window.h>
+#include <cstring>
+
+typedef void (GL_APIENTRYP PFNGLGENQUERIESEXTPROC) (GLsizei n, GLuint *ids);
+typedef void (GL_APIENTRYP PFNGLDELETEQUERIESEXTPROC) (GLsizei n, const GLuint *ids);
+typedef GLboolean (GL_APIENTRYP PFNGLISQUERYEXTPROC) (GLuint id);
+typedef void (GL_APIENTRYP PFNGLBEGINQUERYEXTPROC) (GLenum target, GLuint id);
+typedef void (GL_APIENTRYP PFNGLENDQUERYEXTPROC) (GLenum target);
+typedef void (GL_APIENTRYP PFNGLQUERYCOUNTEREXTPROC) (GLuint id, GLenum target);
+typedef void (GL_APIENTRYP PFNGLGETQUERYIVEXTPROC) (GLenum target, GLenum pname, GLint *params);
+typedef void (GL_APIENTRYP PFNGLGETQUERYOBJECTIVEXTPROC) (GLuint id, GLenum pname, GLint *params);
+typedef void (GL_APIENTRYP PFNGLGETQUERYOBJECTUIVEXTPROC) (GLuint id, GLenum pname, GLuint *params);
+typedef void (GL_APIENTRYP PFNGLGETQUERYOBJECTI64VEXTPROC) (GLuint id, GLenum pname, GLint64 *params);
+typedef void (GL_APIENTRYP PFNGLGETQUERYOBJECTUI64VEXTPROC) (GLuint id, GLenum pname, GLuint64 *params);
+typedef void (GL_APIENTRYP PFNGLGETINTEGER64VPROC) (GLenum pname, GLint64 *params);
+
+extern PFNGLGENQUERIESEXTPROC glGenQueriesEXT_;
+extern PFNGLDELETEQUERIESEXTPROC glDeleteQueriesEXT_;
+extern PFNGLISQUERYEXTPROC glIsQueryEXT_;
+extern PFNGLBEGINQUERYEXTPROC glBeginQueryEXT_;
+extern PFNGLENDQUERYEXTPROC glEndQueryEXT_;
+extern PFNGLQUERYCOUNTEREXTPROC glQueryCounterEXT_;
+extern PFNGLGETQUERYIVEXTPROC glGetQueryivEXT_;
+extern PFNGLGETQUERYOBJECTIVEXTPROC glGetQueryObjectivEXT_;
+extern PFNGLGETQUERYOBJECTUIVEXTPROC glGetQueryObjectuivEXT_;
+extern PFNGLGETQUERYOBJECTI64VEXTPROC glGetQueryObjecti64vEXT_;
+extern PFNGLGETQUERYOBJECTUI64VEXTPROC glGetQueryObjectui64vEXT_;
+extern PFNGLGETINTEGER64VPROC glGetInteger64v_;
+
+#define GL_TIME_ELAPSED_EXT   0x88BF
+#define GL_QUERY_RESULT_EXT   0x8866
+#define GL_TIMESTAMP_EXT      0x8E28
+#define GL_GPU_DISJOINT_EXT   0x8FBB
 
 struct sEglContext {
     EGLDisplay display;
@@ -151,6 +187,29 @@ struct sEglContext {
                            context) == EGL_FALSE) {
             //error("can't make EGL context current: %s", egl_get_error_string(eglGetError()));
         }
+
+        // Load extensions
+        //const char* extensions = (const char*) glGetString(GL_EXTENSIONS);
+
+        // Timer extension
+        // TODO: this is horrible!! Bad practice!! But strstr is acting fucky, so...
+        //if (strstr("GL_EXT_disjoint_timer_query",
+        //           extensions) != NULL) {
+            // https://github.com/wadetb/shellspace/blob/master/external/ovr_mobile_sdk_0.4.3.1/VRLib/jni/GlUtils.cpp
+            glGenQueriesEXT_ = (PFNGLGENQUERIESEXTPROC)eglGetProcAddress("glGenQueriesEXT");
+            glDeleteQueriesEXT_ = (PFNGLDELETEQUERIESEXTPROC)eglGetProcAddress("glDeleteQueriesEXT");
+            glIsQueryEXT_ = (PFNGLISQUERYEXTPROC)eglGetProcAddress("glIsQueryEXT");
+            glBeginQueryEXT_ = (PFNGLBEGINQUERYEXTPROC)eglGetProcAddress("glBeginQueryEXT");
+            glEndQueryEXT_ = (PFNGLENDQUERYEXTPROC)eglGetProcAddress("glEndQueryEXT");
+            glQueryCounterEXT_ = (PFNGLQUERYCOUNTEREXTPROC)eglGetProcAddress("glQueryCounterEXT");
+            glGetQueryivEXT_ = (PFNGLGETQUERYIVEXTPROC)eglGetProcAddress("glGetQueryivEXT");
+            glGetQueryObjectivEXT_ = (PFNGLGETQUERYOBJECTIVEXTPROC)eglGetProcAddress("glGetQueryObjectivEXT");
+            glGetQueryObjectuivEXT_ = (PFNGLGETQUERYOBJECTUIVEXTPROC)eglGetProcAddress("glGetQueryObjectuivEXT");
+            glGetQueryObjecti64vEXT_ = (PFNGLGETQUERYOBJECTI64VEXTPROC)eglGetProcAddress("glGetQueryObjecti64vEXT");
+            glGetQueryObjectui64vEXT_  = (PFNGLGETQUERYOBJECTUI64VEXTPROC)eglGetProcAddress("glGetQueryObjectui64vEXT");
+            glGetInteger64v_  = (PFNGLGETINTEGER64VPROC)eglGetProcAddress("glGetInteger64v");
+        //}
+
     }
 
     void destroy() {
