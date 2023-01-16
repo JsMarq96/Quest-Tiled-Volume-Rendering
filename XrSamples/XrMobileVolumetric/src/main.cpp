@@ -9,8 +9,6 @@ Copyright : Copyright (c) Facebook Technologies, LLC and its affiliates. All rig
 
 *************************************************************************************/
 
-#include "openxr_instance.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -40,7 +38,21 @@ Copyright : Copyright (c) Facebook Technologies, LLC and its affiliates. All rig
 #include "app_data.h"
 #include "application.h"
 #include "asset_locator.h"
+#include "egl_context.h"
+#include "openxr_instance.h"
 
+PFNGLGENQUERIESEXTPROC glGenQueriesEXT_;
+PFNGLDELETEQUERIESEXTPROC glDeleteQueriesEXT_;
+PFNGLISQUERYEXTPROC glIsQueryEXT_;
+PFNGLBEGINQUERYEXTPROC glBeginQueryEXT_;
+PFNGLENDQUERYEXTPROC glEndQueryEXT_;
+PFNGLQUERYCOUNTEREXTPROC glQueryCounterEXT_;
+PFNGLGETQUERYIVEXTPROC glGetQueryivEXT_;
+PFNGLGETQUERYOBJECTIVEXTPROC glGetQueryObjectivEXT_;
+PFNGLGETQUERYOBJECTUIVEXTPROC glGetQueryObjectuivEXT_;
+PFNGLGETQUERYOBJECTI64VEXTPROC glGetQueryObjecti64vEXT_;
+PFNGLGETQUERYOBJECTUI64VEXTPROC glGetQueryObjectui64vEXT_;
+PFNGLGETINTEGER64VPROC glGetInteger64v_;
 
 static void app_handle_cmd(struct android_app* app, int32_t cmd) {
     Application::sAndroidState *app_state = (Application::sAndroidState*) app->userData;
@@ -144,6 +156,8 @@ void android_main(struct android_app* app) {
         xrInitializeLoaderKHR((XrLoaderInitInfoBaseHeaderKHR*)&loaderInitializeInfoAndroid);
     }
 
+
+
     sOpenXRFramebuffer framebuffers[2];
     openxr_instance.init(framebuffers);
 
@@ -155,6 +169,16 @@ void android_main(struct android_app* app) {
     sFrameTransforms frame_transforms = {};
 
     ApplicationLogic::config_render_pipeline(renderer);
+
+    uint64_t start_render, end_render;
+    uint32_t gl_time_queries[4];
+#define START_RENDER 0
+#define END_RENDER 1
+#define START_FRAME 2
+#define END_FRAME 3
+
+    glGenQueriesEXT_(2,
+                    gl_time_queries);
 
     // Game Loop
     while (app->destroyRequested == 0) {
@@ -198,15 +222,47 @@ void android_main(struct android_app* app) {
         ApplicationLogic::update_logic(delta_time,
                                        frame_transforms);
 
-        // Render
+        int disjoint_occurred = 0;
+        // Clear, if disjoint erro ocurred
+        glGetIntegerv(GL_GPU_DISJOINT_EXT,
+                      &disjoint_occurred);
+        // Render (& timing)
+        glQueryCounterEXT_(gl_time_queries[START_RENDER],
+                           GL_TIMESTAMP_EXT);
 
         renderer.render_frame(true,
                               frame_transforms.view,
                               frame_transforms.projection,
                               frame_transforms.viewprojection);
 
+        glQueryCounterEXT_(gl_time_queries[END_RENDER],
+                           GL_TIMESTAMP_EXT);
+
         openxr_instance.submit_frame();
-        __android_log_print(ANDROID_LOG_VERBOSE, "Openxr test", "ending frame");
+
+
+        // Query processing ===========================================
+        int available = 0;
+        while (!available) {
+            glGetQueryObjectivEXT_(gl_time_queries[END_RENDER], GL_QUERY_RESULT_AVAILABLE, &available);
+        }
+
+        glGetQueryObjectui64vEXT_(gl_time_queries[START_RENDER], GL_QUERY_RESULT, &start_render);
+        glGetQueryObjectui64vEXT_(gl_time_queries[END_RENDER], GL_QUERY_RESULT, &end_render);
+
+
+        glGetIntegerv(GL_GPU_DISJOINT_EXT,
+                      &disjoint_occurred);
+        if (!disjoint_occurred) {
+            __android_log_print(ANDROID_LOG_VERBOSE,
+                                "FRAME_STATS",
+                                "Render time: %f",
+                                ((double) end_render - (double)start_render) / 1000000.0);
+        } else {
+            __android_log_print(ANDROID_LOG_VERBOSE, "FRAME_STATS", "Render time: invalid");
+        }
+
+        __android_log_print(ANDROID_LOG_VERBOSE, "FRAME", "==================");
     }
 
     // Cleanup TODO
