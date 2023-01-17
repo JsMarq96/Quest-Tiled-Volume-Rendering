@@ -14,16 +14,16 @@
 
 uint8_t sMaterialManager::add_shader(const char     *vertex_shader,
                            const char     *fragment_shader) {
-    shaders[shader_count].load_file_shaders(vertex_shader,
-                                            fragment_shader);
+    shaders[shader_count].load_file_graphic_shaders(vertex_shader,
+                                                    fragment_shader);
 
     return shader_count++;
 }
 
  uint8_t sMaterialManager::add_raw_shader(const char     *vertex_shader,
                            const char     *fragment_shader) {
-    shaders[shader_count].load_shaders(vertex_shader,
-                                       fragment_shader);
+     shaders[shader_count].load_graphic_shaders(vertex_shader,
+                                                fragment_shader);
     return shader_count++;
 }
 

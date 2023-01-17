@@ -72,6 +72,7 @@ struct sEglContext {
         EGLConfig configs[MAX_CONFIG];
         //info("get number of EGL configs");
         EGLint num_configs = 0;
+
         if (eglGetConfigs(display,
                           configs,
                           MAX_CONFIG,

@@ -3,6 +3,7 @@
 
 #ifndef __EMSCRIPTEN__
 #include <GLES3/gl3.h>
+#include <GLES3/gl32.h>
 #else
 #include <webgl/webgl2.h>
 #endif
@@ -23,14 +24,21 @@
 struct sShader {
     unsigned int ID;
 
+    bool is_compute = false;
+
     sShader() {};
     sShader(const char* vertex_shader, const char* fragment_shader);
 
-    void load_file_shaders(const char* v_shader_dir, const char* f_shader_dir);
-    void load_shaders(const char* vertex_shader, const char* frag_shader_dir);
+    void load_file_graphic_shaders(const char* v_shader_dir, const char* f_shader_dir);
+    void load_graphic_shaders(const char* vertex_shader, const char* frag_shader_dir);
+    void load_compute_shader(const char* raw_compute);
 
     void activate() const;
     void deactivate() const;
+
+    void dispatch(const uint32_t dispatch_x,
+                  const uint32_t dispatch_y,
+                  const uint32_t dispatch_z) const;
 
     // Setters for the shader's uniforms
     void set_uniform(const char* name, const float value) const;

@@ -20,6 +20,8 @@ sShader::sShader(const char* vertex_shader_raw,
     int compile_successs;
     char compile_log[512];
 
+    is_compute = false;
+
     // Create and compile the shaders
     vertex_id = glCreateShader(GL_VERTEX_SHADER);
 
@@ -69,8 +71,8 @@ sShader::sShader(const char* vertex_shader_raw,
     glDeleteShader(fragment_id);
 }
 
-void sShader::load_file_shaders(const char*     v_shader_dir,
-                                const char*     f_shader_dir) {
+void sShader::load_file_graphic_shaders(const char*     v_shader_dir,
+                                        const char*     f_shader_dir) {
     FILE *vert_file, *frag_file;
     int vert_size, frag_size;
     char* raw_vert_shader, *raw_frag_shader;
@@ -104,17 +106,19 @@ void sShader::load_file_shaders(const char*     v_shader_dir,
     fclose(vert_file);
     fclose(frag_file);
 
-    load_shaders(raw_vert_shader, raw_frag_shader);
+    load_graphic_shaders(raw_vert_shader, raw_frag_shader);
 
     free(raw_vert_shader);
     free(raw_frag_shader);
 }
 
-void sShader::load_shaders(const char*   vertex_shader_raw,
-                           const char*   fragment_shader_raw) {
+void sShader::load_graphic_shaders(const char*   vertex_shader_raw,
+                                   const char*   fragment_shader_raw) {
     int vertex_id, fragment_id;
     int compile_successs;
     char compile_log[512];
+
+    is_compute = false;
 
     // Create and compile the shaders
     vertex_id = glCreateShader(GL_VERTEX_SHADER);
@@ -165,12 +169,76 @@ void sShader::load_shaders(const char*   vertex_shader_raw,
     glDeleteShader(fragment_id);
 };
 
+void sShader::load_compute_shader(const char* raw_compute) {
+    int compile_successs;
+    char compile_log[512];
+
+    is_compute = true;
+
+    // Create and compile the shaders
+    uint32_t compute_id = glCreateShader(GL_COMPUTE_SHADER);
+
+    glShaderSource(compute_id,
+                   1,
+                   &raw_compute,
+                   NULL);
+    glCompileShader(compute_id);
+    glGetShaderiv(compute_id,
+                  GL_COMPILE_STATUS,
+                  &compile_successs);
+
+    if (!compile_successs) {
+        glGetShaderInfoLog(compute_id,
+                           512,
+                           NULL,
+                           compile_log);
+        __android_log_print(ANDROID_LOG_ERROR,
+                            "Compute Shader compilation error",
+                            "%s", compile_log);
+        assert(">>>>>Error comiling vertex shader" && false);
+    }
+
+    ID = glCreateProgram();
+    glLinkProgram(ID);
+    glGetProgramiv(ID,
+                   GL_LINK_STATUS,
+                   &compile_successs);
+
+    if (!compile_successs) {
+        glGetProgramInfoLog(ID,
+                            512,
+                            NULL,
+                            compile_log);
+        __android_log_print(ANDROID_LOG_ERROR,
+                            "Compute Shader linking error",
+                            "%s", compile_log);
+        assert(">>>>>Shader Linking error" && false);
+    }
+
+    // Cleanup
+    glDeleteShader(compute_id);
+}
+
+
+
 void sShader::activate() const {
     glUseProgram(ID);
 }
 
 void sShader::deactivate() const {
     glUseProgram(0);
+}
+
+void sShader::dispatch(const uint32_t dispatch_x,
+                       const uint32_t dispatch_y,
+                       const uint32_t dispatch_z) const {
+    if (!is_compute) {
+        return;
+    }
+
+    glDispatchCompute(dispatch_x,
+                      dispatch_y,
+                      dispatch_z);
 }
 
 void sShader::set_uniform(const char* name,

@@ -155,8 +155,7 @@ void android_main(struct android_app* app) {
 
         xrInitializeLoaderKHR((XrLoaderInitInfoBaseHeaderKHR*)&loaderInitializeInfoAndroid);
     }
-
-
+    
 
     sOpenXRFramebuffer framebuffers[2];
     openxr_instance.init(framebuffers);
@@ -172,6 +171,7 @@ void android_main(struct android_app* app) {
 
     uint64_t render_time;
     uint32_t gl_time_queries[4];
+
 #define TIME_RENDER 0
 
     glGenQueriesEXT_(2,
