@@ -237,7 +237,7 @@ uniform highp sampler3D u_volume_map;
 //uniform highp float u_density_threshold;
 
 const int MAX_ITERATIONS = 100;
-const float STEP_SIZE = 0.50; // 0.004 ideal for quality
+const float STEP_SIZE = 0.7500; // 0.004 ideal for quality
 const float DELTA = 0.001;
 const float SMALLEST_VOXEL = 0.0078125; // 2.0 / 256
 
@@ -259,18 +259,53 @@ float get_int(in float f) {
 float get_level_of_size(in float size) {
     return 1.0 + log2(size);
 }
+
+const float mip_size_LUT[8] = float[8]( // POW(2.0, LEVEL-1)
+    1.0, // 0
+    1.0, // 1
+    2.0, // 2
+    4.0, // 3
+    8.0, // 4
+    16.0, // 5
+    32.0,// 6
+    64.0 // 7
+);
+
+const float mip_size_LUT_half[8] = float[8]( // 1.0 / POW(2.0, LEVEL-1)
+    1.0, // 0
+    1.0 / mip_size_LUT[1], // 1
+    1.0 / mip_size_LUT[2], // 2
+    1.0 / mip_size_LUT[3], // 3
+    1.0 / mip_size_LUT[4], // 4
+    1.0 / mip_size_LUT[5], // 5
+    1.0 / mip_size_LUT[6],// 6
+    1.0 / mip_size_LUT[7] // 7
+);
+
+const float mip_size_LUT_half_step[8] = float[8]( // 1.0 / POW(2.0, LEVEL-1)
+    mip_size_LUT_half[0] * STEP_SIZE, // 0
+    mip_size_LUT_half[1] * STEP_SIZE, // 1
+    mip_size_LUT_half[2] * STEP_SIZE, // 2
+    mip_size_LUT_half[3] * STEP_SIZE, // 3
+    mip_size_LUT_half[4] * STEP_SIZE, // 4
+    mip_size_LUT_half[5] * STEP_SIZE, // 5
+    mip_size_LUT_half[6] * STEP_SIZE,// 6
+    mip_size_LUT_half[7] * STEP_SIZE // 7
+);
+
 float get_size_of_miplevel(in float level) {
-    return get_int(pow(2.0, level - 1.0));
+    //return get_int(pow(2.0, level - 1.0));
+    return mip_size_LUT[int(level)];
 }
 
 void get_voxel_of_point_in_level(in vec3 point, in float mip_level, out vec3 origin, out vec3 size) {
-    float voxel_proportions = 2.0 / get_size_of_miplevel(mip_level);// The cube is sized 2,2,2 in world coords
+    float voxel_proportions = mip_size_LUT_half[int(mip_level)];// The cube is sized 2,2,2 in world coords
     vec3 voxel_size = vec3(voxel_proportions);
 
     vec3 start_coords = point - mod(point, voxel_proportions);
 
     origin = start_coords;
-    size = voxel_size;
+    size = start_coords + voxel_size;
 }
 
 bool is_inside(in vec3 box_origin, in vec3 box_size, in vec3 position) {
@@ -280,9 +315,13 @@ bool is_inside(in vec3 box_origin, in vec3 box_size, in vec3 position) {
     return all(greaterThan(position, box_min)) && all(lessThan(position, box_max));
 }
 
+bool is_inside_v2(in vec3 box_min, in vec3 box_max, in vec3 position) {
+    return all(greaterThan(position, box_min)) && all(lessThan(position, box_max));
+}
+
 
 float get_distance(in float level) {
-    return 1.0 / get_size_of_miplevel(level) * STEP_SIZE;
+    return mip_size_LUT_half_step[int(level)];
     //return pow(2.0, level - 1.0) * SMALLEST_VOXEL * 0.025;
 }
 
@@ -300,20 +339,22 @@ vec3 mrm() {
 
     //return vec3(dist_max);
     //float prev_mip_level = curr_mipmap_level;
-    vec3 prev_voxel_size = vec3(2.0);
-    vec3 prev_voxel_start = vec3(-1.0);
+    vec3 prev_voxel_min = vec3(0.0);
+    vec3 prev_voxel_max = vec3(1.0);
+
+    vec3 box_min = vec3(0.0), box_max = vec3(1.0);
 
     int i = 0;
     for(; i < MAX_ITERATIONS; i++) {
         vec3 sample_pos = pos + (dist * ray_dir);
 
         // Early out
-        if (!is_inside(vec3(0.0), vec3(1.0), sample_pos)) {
+        if (!is_inside_v2(box_min, box_max, sample_pos)) {
             break;
         }
 
         // Go back another level if we are exiting the area for where we came down
-        if (!is_inside(prev_voxel_start, prev_voxel_size, sample_pos)) {
+        if (!is_inside_v2(prev_voxel_min, prev_voxel_max, sample_pos)) {
             curr_mipmap_level = curr_mipmap_level + 1.0;
             // Recalculate sample position
             dist = prev_dist;
@@ -327,7 +368,7 @@ vec3 mrm() {
                 //break;
                 //return gradient(sample_pos) * 0.5 + 0.5;
             }
-            get_voxel_of_point_in_level(sample_pos, curr_mipmap_level, prev_voxel_start, prev_voxel_size);
+            get_voxel_of_point_in_level(sample_pos, curr_mipmap_level, prev_voxel_min, prev_voxel_max);
             curr_mipmap_level = curr_mipmap_level - 1.0;
             // go back  one step
             dist = prev_dist;
