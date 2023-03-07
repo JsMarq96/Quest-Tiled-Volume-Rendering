@@ -233,11 +233,11 @@ out vec4 o_frag_color;
 uniform float u_time;
 uniform vec3 u_camera_eye_local;
 uniform highp sampler3D u_volume_map;
-//uniform highp sampler2D u_albedo_map; // Noise texture
+uniform highp sampler2D u_albedo_map; // Noise texture
 //uniform highp float u_density_threshold;
 
-const int MAX_ITERATIONS = 100;
-const float STEP_SIZE = 0.7500; // 0.004 ideal for quality
+const int MAX_ITERATIONS = 200;
+const float STEP_SIZE = 0.70; // 0.004 ideal for quality
 const float DELTA = 0.001;
 const float SMALLEST_VOXEL = 0.0078125; // 2.0 / 256
 
@@ -351,14 +351,6 @@ vec3 mrm() {
         // Early out
         if (!is_inside_v2(box_min, box_max, sample_pos)) {
             break;
-        }
-
-        // Go back another level if we are exiting the area for where we came down
-        if (!is_inside_v2(prev_voxel_min, prev_voxel_max, sample_pos)) {
-            curr_mipmap_level = curr_mipmap_level + 1.0;
-            // Recalculate sample position
-            dist = prev_dist;
-            sample_pos = pos + (dist * ray_dir);
         }
 
         float depth = textureLod(u_volume_map, sample_pos, curr_mipmap_level).r;
