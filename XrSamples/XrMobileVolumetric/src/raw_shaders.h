@@ -237,6 +237,7 @@ uniform highp sampler2D u_albedo_map; // Noise texture
 //uniform highp float u_density_threshold;
 
 const int MAX_ITERATIONS = 200;
+const int NOISE_TEX_WIDTH = 100;
 const float STEP_SIZE = 0.70; // 0.004 ideal for quality
 const float DELTA = 0.001;
 const float SMALLEST_VOXEL = 0.0078125; // 2.0 / 256
@@ -329,6 +330,8 @@ vec3 mrm() {
     // Raymarching conf
     vec3 ray_dir = normalize(v_local_position - u_camera_eye_local);
     vec3 pos = v_local_position - ray_dir * 0.001;
+    vec3 jitter_addition = ray_dir * (texture(u_albedo_map, gl_FragCoord.xy / vec2(NOISE_TEX_WIDTH)).rgb * 0.03);
+    pos += jitter_addition;
 
     // MRM
     float curr_mipmap_level = 7.0;
