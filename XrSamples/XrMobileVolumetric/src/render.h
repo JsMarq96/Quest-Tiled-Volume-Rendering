@@ -19,7 +19,7 @@
 #define MESH_TOTAL_COUNT 20
 #define FBO_TOTAL_COUNT 15
 #define RBO_TOTAL_COUNT 15
-#define DRAW_CALL_STACK_SIZE 30
+#define DRAW_CALL_STACK_SIZE 400
 #define RENDER_PASS_COUNT 5
 /**
  * A Wrapper for the rendering backend, for now with webgl
@@ -64,16 +64,26 @@ namespace Render {
             depth_test_enabled = true;
             write_to_depth_buffer = true;
             depth_function = GL_LESS;
+            glEnable(GL_DEPTH_TEST);
+            glDepthMask(write_to_depth_buffer);
+            glDepthFunc(depth_function);
 
             // Culling info
-            culling_enabled = true;
+            culling_enabled = false;
             culling_mode = GL_BACK;
             front_face = GL_CCW;
+            glCullFace(culling_mode);
+            glFrontFace(front_face);
+            glDisable(GL_CULL_FACE);
 
             // Blending
             blending_enabled = true;
-            blend_func_x = GL_ONE;
+            //blend_func_x = GL_ONE;
+            //blend_func_y = GL_ONE;
+            blend_func_x = GL_SRC_ALPHA;
             blend_func_y = GL_ONE_MINUS_SRC_ALPHA;
+            glDisable(GL_BLEND);
+            glBlendFunc(blend_func_x, blend_func_y);
         }
     };
 
@@ -129,7 +139,7 @@ namespace Render {
 
         uint8_t fbo_id;
 
-        uint8_t draw_stack_size = 0;
+        uint16_t draw_stack_size = 0;
         sDrawCall draw_stack[DRAW_CALL_STACK_SIZE];
     };
     
@@ -162,12 +172,11 @@ namespace Render {
                           const glm::mat4x4 *viewproj_mats);
 
         // Inlines
-        inline uint8_t add_drawcall_to_pass(const uint8_t pass_id,
+        inline uint16_t add_drawcall_to_pass(const uint16_t pass_id,
                                             const sDrawCall &draw_call) {
             sRenderPass *pass = &render_passes[pass_id];
 
             pass->draw_stack[pass->draw_stack_size] = draw_call;
-
             return pass->draw_stack_size++;
         }
 

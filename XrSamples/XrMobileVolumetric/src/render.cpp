@@ -107,17 +107,6 @@ void Render::sInstance::init(sOpenXRFramebuffer *openxr_framebuffer) {
 
 
     // Set default render config
-
-    current_state.depth_test_enabled = true;
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(current_state.write_to_depth_buffer);
-    glDepthFunc(current_state.depth_function);
-
-    current_state.culling_enabled = true;
-    glEnable(GL_CULL_FACE);
-    glCullFace(current_state.culling_mode);
-    glFrontFace(current_state.front_face);
-
     current_state.set_default();
 
     // Init quad mesh
@@ -153,16 +142,16 @@ void Render::sInstance::change_graphic_state(const sGLState &new_state) {
     if (current_state.culling_enabled != new_state.culling_enabled) {
         if (current_state.culling_enabled) {
             glEnable(GL_CULL_FACE);
+
+            if (current_state.culling_mode != new_state.culling_mode) {
+                glCullFace(new_state.culling_mode);
+                current_state.culling_mode = new_state.culling_mode;
+            }
         } else {
             glDisable(GL_CULL_FACE);
         }
 
         current_state.culling_enabled = new_state.culling_enabled;
-    }
-
-    if (current_state.culling_mode != new_state.culling_mode) {
-        glCullFace(new_state.culling_mode);
-        current_state.culling_mode = new_state.culling_mode;
     }
 
     if (current_state.front_face != new_state.front_face) {
@@ -204,7 +193,8 @@ void Render::sInstance::render_frame(const bool clean_frame,
                                      const glm::mat4x4 *viewproj_mats) {
     __android_log_print(ANDROID_LOG_VERBOSE, "View", "-------------------------------");
     for(uint16_t eye = 0; eye < MAX_EYE_NUMBER; eye++) {
-
+        //glm::vec3 view = glm::inverse(view_mats[eye]) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+        //__android_log_print(ANDROID_LOG_VERBOSE, "FRAME_STATS", "View %f %f %f", view.x, view.y, view.z);
         for(uint16_t j = 0; j < render_pass_size; j++) {
             sRenderPass &pass = render_passes[j];
 
@@ -228,6 +218,7 @@ void Render::sInstance::render_frame(const bool clean_frame,
 
             // Run the render calls
             glm::mat4x4 model, model_invert;
+            //__android_log_print(ANDROID_LOG_VERBOSE, "FRAaME_stat", "rendere %i", pass.draw_stack_size);
             for(uint16_t i = 0; i < pass.draw_stack_size; i++) {
                 sDrawCall &draw_call = pass.draw_stack[i];
 
@@ -247,6 +238,7 @@ void Render::sInstance::render_frame(const bool clean_frame,
                 material_man.enable(draw_call.material_id);
 
                 glBindVertexArray(mesh.VAO);
+                glEnable(GL_BLEND);
 
                 if (draw_call.use_transform) {
                     shader.set_uniform_matrix4("u_model_mat",
@@ -278,6 +270,7 @@ void Render::sInstance::render_frame(const bool clean_frame,
                                    mesh.primitive_count,
                                    GL_UNSIGNED_SHORT,
                                    0);
+
                 } else {
                     glDrawArrays(mesh.primitive,
                                  0,

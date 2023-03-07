@@ -417,6 +417,52 @@ void main() {
 }
 )";
 
+const char bill_vertex[] = R"(#version 300 es
+in  vec3 a_pos;
+in  vec2 a_uv;
+in  vec3 a_normal;
+
+out vec2 v_uv;
+out vec3 v_world_position;
+out vec3 v_local_position;
+out vec2 v_screen_position;
+
+uniform mat4 u_vp_mat;
+uniform mat4 u_model_mat;
+
+void main() {
+    vec4 world_pos = u_model_mat * vec4(a_pos, 1.0);
+    v_world_position = world_pos.xyz;
+    v_local_position = a_pos;
+    gl_Position =  u_vp_mat * world_pos;
+    v_uv = a_uv;
+    v_screen_position = ((gl_Position.xy / gl_Position.w) + 1.0) / 2.0;
+})";
+
+const char bill_fragment[] = R"(#version 300 es
+precision highp float;
+in vec2 v_uv;
+in vec3 v_world_position;
+in vec3 v_local_position;
+in vec2 v_screen_position;
+
+out vec4 o_frag_color;
+
+uniform float u_time;
+uniform vec3 u_camera_position;
+uniform highp sampler3D u_volume_map;
+
+void main() {
+    vec3 pos = v_world_position-vec3(-0.25, 0.50, 0.25);
+    float depth = textureLod(u_volume_map, pos * 2.0, 0.0).r;
+    if (depth < 0.15) { discard;}
+    //pos = pos * 2.0;
+    //pos = pos * 2.0;
+    o_frag_color = vec4(pos * 2.0, 1.0);
+    // o_frag_color = vec4(textureLod(u_volume_map, v_world_position * 0.5 + 0.5, 0.0).r);
+    //o_frag_color = vec4(pos, 1.0);
+})";
+
 };
 
 #endif // RAW_SHADERS_H_
