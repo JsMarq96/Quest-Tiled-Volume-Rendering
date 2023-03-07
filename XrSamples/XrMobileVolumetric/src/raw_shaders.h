@@ -238,7 +238,7 @@ uniform highp sampler2D u_albedo_map; // Noise texture
 
 const int MAX_ITERATIONS = 200;
 const int NOISE_TEX_WIDTH = 100;
-const float STEP_SIZE = 0.70; // 0.004 ideal for quality
+const float STEP_SIZE = 0.80; // 0.004 ideal for quality
 const float DELTA = 0.001;
 const float SMALLEST_VOXEL = 0.0078125; // 2.0 / 256
 
@@ -355,6 +355,7 @@ vec3 mrm() {
         if (!is_inside_v2(box_min, box_max, sample_pos)) {
             break;
         }
+
 
         float depth = textureLod(u_volume_map, sample_pos, curr_mipmap_level).r;
         if (depth > 0.15) { // There is a block
