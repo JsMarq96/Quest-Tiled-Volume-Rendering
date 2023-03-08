@@ -454,7 +454,7 @@ uniform highp sampler3D u_volume_map;
 
 void main() {
     vec3 pos = v_world_position-vec3(-0.25, 0.50, 0.25);
-    float depth = textureLod(u_volume_map, pos * 2.0, 0.0).r;
+    float depth = texture(u_volume_map, pos * 2.0).r;
     if (depth < 0.15) { discard;}
     //pos = pos * 2.0;
     //pos = pos * 2.0;
