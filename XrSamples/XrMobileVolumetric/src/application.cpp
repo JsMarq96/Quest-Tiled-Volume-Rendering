@@ -58,7 +58,7 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
     renderer.render_passes[render_pass].rgba_clear_values[2] = 1.0f;
     renderer.render_passes[render_pass].rgba_clear_values[3] = 1.0f;
 
-    glm::vec3 starting_pos = {0.0f, 0.750000, 0.0f};
+    glm::vec3 starting_pos = {-0.250f, 0.250000, -0.250f};
 
     renderer.add_drawcall_to_pass(render_pass,
                                   {.mesh_id = cube_mesh,
