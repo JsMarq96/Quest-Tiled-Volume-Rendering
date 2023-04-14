@@ -5,8 +5,10 @@
 #include "application.h"
 #include "raw_meshes.h"
 #include "asset_locator.h"
+#include "surface_nets.h"
 
 void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
+    SurfaceNets::sGenerator mesh_generator = {};
     // Load cube mesh
     const uint8_t cube_mesh = renderer.get_new_mesh_id();
     renderer.meshes[cube_mesh].init_with_triangles(RawMesh::cube_geometry,
@@ -15,8 +17,8 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
                                                    sizeof(RawMesh::cube_indices));
 
     // Create shaders
-    const uint8_t volume_shader = renderer.material_man.add_raw_shader(RawShaders::basic_vertex,
-                                                                       RawShaders::volumetric_fragment_outside);
+    const uint8_t color_shader = renderer.material_man.add_raw_shader(RawShaders::basic_vertex,
+                                                                       RawShaders::world_fragment_shader);
     //const uint8_t plaincolor_shader = renderer.material_man.add_raw_shader(RawShaders::basic_vertex,
     //                                                                        RawShaders::basic_fragment);
 
@@ -31,20 +33,20 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
                                                                             256);
     free(volume_tex_dir);
 
-    // Load the blue noise texutre
-    char *blue_noise_tex_dir = NULL;
-    Assets::get_asset_dir("assets/blueNoise.png",
-                          &blue_noise_tex_dir);
 
-    const uint8_t blue_noise_texture = renderer.material_man.add_texture(blue_noise_tex_dir);
+    // Fill a new MeshBuffer from the generator data
+    uint8_t bonsai_mesh = renderer.get_new_mesh_id();
+
+    // Generate the surface from the volume
+    mesh_generator.generate_from_volume(renderer.material_man.textures[volume_texture],
+                                        200,
+                                        &renderer.meshes[bonsai_mesh]);
 
     // Create materials
-    const uint8_t volumetric_material = renderer.material_man.add_material(volume_shader,
+    const uint8_t simple_material = renderer.material_man.add_material(color_shader,
                                                                            {
-                                                                                .color_tex = blue_noise_texture,
-                                                                                .volume_tex = volume_texture,
-                                                                                .enabled_color = true,
-                                                                                .enabled_volume = true
+                                                                                .enabled_color = false,
+                                                                                .enabled_volume = false
                                                                            });
 
 
@@ -61,8 +63,9 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
     glm::vec3 starting_pos = {-0.250f, 0.250000, -0.250f};
 
     renderer.add_drawcall_to_pass(render_pass,
-                                  {.mesh_id = cube_mesh,
-                                    .material_id = volumetric_material,
+                                  {
+                                    .mesh_id = bonsai_mesh,
+                                    .material_id = simple_material,
                                     .use_transform = true,
                                     .transform = {
                                           .position = starting_pos,

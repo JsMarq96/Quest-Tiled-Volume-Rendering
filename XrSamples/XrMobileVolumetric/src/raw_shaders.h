@@ -382,6 +382,21 @@ void main() {
    o_frag_color = vec4(mrm(), 1.0);
 })";
 
+const char world_fragment_shader[] = R"(#version 300 es
+precision highp float;
+
+in vec2 v_uv;
+in vec3 v_world_position;
+in vec3 v_local_position;
+in vec2 v_screen_position;
+
+out vec4 o_frag_color;
+
+void main() {
+    o_frag_color = vec4(v_world_position, 1.0);
+}
+)";
+
 const char local_fragment[] = R"(#version 300 es
 precision highp float;
 
