@@ -231,7 +231,8 @@ void sShader::deactivate() const {
 
 void sShader::dispatch(const uint32_t dispatch_x,
                        const uint32_t dispatch_y,
-                       const uint32_t dispatch_z) const {
+                       const uint32_t dispatch_z,
+                       const bool wait_for) const {
     if (!is_compute) {
         return;
     }
@@ -239,6 +240,9 @@ void sShader::dispatch(const uint32_t dispatch_x,
     glDispatchCompute(dispatch_x,
                       dispatch_y,
                       dispatch_z);
+    if (wait_for) {
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+    }
 }
 
 void sShader::set_uniform(const char* name,

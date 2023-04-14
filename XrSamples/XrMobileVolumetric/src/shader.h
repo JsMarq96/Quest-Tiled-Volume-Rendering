@@ -38,7 +38,8 @@ struct sShader {
 
     void dispatch(const uint32_t dispatch_x,
                   const uint32_t dispatch_y,
-                  const uint32_t dispatch_z) const;
+                  const uint32_t dispatch_z,
+                  const bool wait_for=false) const;
 
     // Setters for the shader's uniforms
     void set_uniform(const char* name, const float value) const;

@@ -5,6 +5,7 @@
 
 #include <android/log.h>
 
+#include "surface_nets.h"
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_float4x4.hpp"
 #include "glm/ext/matrix_projection.hpp"
