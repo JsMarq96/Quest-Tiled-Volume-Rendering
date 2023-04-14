@@ -21,6 +21,7 @@
 
 #include <glm/glm.hpp>
 
+#include "test_perspectives.h"
 #include "egl_context.h"
 #include "app_data.h"
 #include "device.h"
