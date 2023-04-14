@@ -235,6 +235,9 @@ void Render::sInstance::render_frame(const bool clean_frame,
                 if (!draw_call.enabled) {
                     continue;
                 }
+                __android_log_print(ANDROID_LOG_VERBOSE,
+                                    "FRAME_STATS",
+                                    "x: Holaa");
 
                 sMaterialInstance &material = material_man.materials[draw_call.material_id];
                 sShader &shader = material_man.shaders[material.shader_id];

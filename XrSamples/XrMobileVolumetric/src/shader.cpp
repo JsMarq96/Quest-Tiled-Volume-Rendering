@@ -199,6 +199,7 @@ void sShader::load_compute_shader(const char* raw_compute) {
     }
 
     ID = glCreateProgram();
+    glAttachShader(ID, compute_id);
     glLinkProgram(ID);
     glGetProgramiv(ID,
                    GL_LINK_STATUS,

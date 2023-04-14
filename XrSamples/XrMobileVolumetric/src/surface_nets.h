@@ -97,6 +97,9 @@ namespace SurfaceNets {
 
             // Generate the Mesh buffer structure, with the volume's mesh data
             new_mesh->VBO = mesh_vertices_SSBO;
+            new_mesh->is_indexed = false;
+            new_mesh->primitive = GL_TRIANGLES;
+            new_mesh->primitive_count = vertices_count;
             glGenBuffers(1, &new_mesh->VAO);
             glBindVertexArray(new_mesh->VAO);
             glBindBuffer(GL_ARRAY_BUFFER, new_mesh->VBO);

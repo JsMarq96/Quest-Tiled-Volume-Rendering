@@ -156,7 +156,8 @@ struct sEglContext {
 
 
         //info("create EGL context");
-        static const EGLint CONTEXT_ATTRIBS[] = {EGL_CONTEXT_CLIENT_VERSION, 3,
+        static const EGLint CONTEXT_ATTRIBS[] = {EGL_CONTEXT_MAJOR_VERSION, 3,
+                                                 EGL_CONTEXT_MINOR_VERSION, 1,
                                                  EGL_NONE};
         context = eglCreateContext(display,
                                    config,

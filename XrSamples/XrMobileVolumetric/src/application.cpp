@@ -74,7 +74,7 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
                                     .call_state = {
                                           .depth_test_enabled = false,
                                           .write_to_depth_buffer = true,
-                                          .culling_enabled = true,
+                                          .culling_enabled = false,
                                           .culling_mode = GL_FRONT
                                     },
                                     .enabled = true });
