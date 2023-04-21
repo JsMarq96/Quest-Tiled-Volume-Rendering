@@ -7,14 +7,46 @@
 #include "asset_locator.h"
 #include "surface_nets.h"
 
-void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
-    SurfaceNets::sGenerator mesh_generator = {};
+void ApplicationLogic::initial_config_render_pipeline(Render::sInstance &renderer) {
+    // Create the render pipeline
+    render_pass = renderer.add_render_pass(Render::SCREEN_TARGET,
+                                                         0);
     // Load cube mesh
     const uint8_t cube_mesh = renderer.get_new_mesh_id();
     renderer.meshes[cube_mesh].init_with_triangles(RawMesh::cube_geometry,
                                                    sizeof(RawMesh::cube_geometry),
                                                    RawMesh::cube_indices,
                                                    sizeof(RawMesh::cube_indices));
+
+    const uint8_t plain_shader = renderer.material_man.add_raw_shader(RawShaders::basic_vertex,
+                                                                      RawShaders::basic_fragment);
+
+    // Create materials
+    const uint8_t simple_material = renderer.material_man.add_material(plain_shader,
+                                                                       {
+                                                                               .enabled_color = false,
+                                                                               .enabled_volume = false
+                                                                       });
+
+    cube_pass = renderer.add_drawcall_to_pass(render_pass,
+                                      {
+                                              .mesh_id = cube_mesh,
+                                              .material_id = simple_material,
+                                              .use_transform = true,
+                                              .transform = {
+                                                      .position = {-0.250f, 0.250000, -0.250f},
+                                                      .scale = {0.50f, 0.50f, 0.50f}
+                                              },
+                                              .call_state = {
+                                                      .depth_test_enabled = true,
+                                                      .write_to_depth_buffer = true,
+                                                      .culling_enabled = false,
+                                              },
+                                              .enabled = true });
+}
+
+void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
+    SurfaceNets::sGenerator mesh_generator = {};
 
     // Create shaders
     const uint8_t color_shader = renderer.material_man.add_raw_shader(RawShaders::basic_vertex,
@@ -49,11 +81,6 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
                                                                                 .enabled_volume = false
                                                                            });
 
-
-    // Create the render pipeline
-    const uint8_t render_pass = renderer.add_render_pass(Render::SCREEN_TARGET,
-                                                         0);
-
     // Set clear color
     renderer.render_passes[render_pass].rgba_clear_values[0] = 0.0f;
     renderer.render_passes[render_pass].rgba_clear_values[1] = 0.0f;
@@ -77,6 +104,8 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
                                           .culling_enabled = false,
                                     },
                                     .enabled = true });
+    // Disable teh prev drawcall
+    renderer.render_passes[render_pass].draw_stack[cube_pass].enabled = false;
 }
 
 void ApplicationLogic::update_logic(const double delta_time,

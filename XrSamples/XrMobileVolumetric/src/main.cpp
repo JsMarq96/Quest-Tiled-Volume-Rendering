@@ -167,15 +167,19 @@ void android_main(struct android_app* app) {
 
     sFrameTransforms frame_transforms = {};
 
-    ApplicationLogic::config_render_pipeline(renderer);
-
     uint64_t render_time;
     uint32_t gl_time_queries[4];
 
 #define TIME_RENDER 0
+#define MESH_GEN_RENDER 0
 
     glGenQueriesEXT_(2,
                     gl_time_queries);
+
+    bool renderer_initialized = false;
+    uint8_t frame_counter = 0;
+
+    ApplicationLogic::initial_config_render_pipeline(renderer);
 
     // Game Loop
     while (app->destroyRequested == 0) {
@@ -231,11 +235,18 @@ void android_main(struct android_app* app) {
         // Render (& timing)
         glBeginQueryEXT_(GL_TIME_ELAPSED_EXT,
                          gl_time_queries[TIME_RENDER]);
-
         renderer.render_frame(true,
                               frame_transforms.view,
                               frame_transforms.projection,
                               frame_transforms.viewprojection);
+        if (!renderer_initialized && frame_counter > 2) {
+
+            ApplicationLogic::config_render_pipeline(renderer);
+            renderer_initialized = true;
+            __android_log_print(ANDROID_LOG_VERBOSE, "FRAME_STATS", "COMPUTE FRAME");
+        }
+        frame_counter++;
+
 
         glEndQueryEXT_(GL_TIME_ELAPSED_EXT);
 
