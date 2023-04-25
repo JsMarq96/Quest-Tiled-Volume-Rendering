@@ -9,12 +9,6 @@
 
 void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
     SurfaceNets::sGenerator mesh_generator = {};
-    // Load cube mesh
-    const uint8_t cube_mesh = renderer.get_new_mesh_id();
-    renderer.meshes[cube_mesh].init_with_triangles(RawMesh::cube_geometry,
-                                                   sizeof(RawMesh::cube_geometry),
-                                                   RawMesh::cube_indices,
-                                                   sizeof(RawMesh::cube_indices));
 
     // Create shaders
     const uint8_t color_shader = renderer.material_man.add_raw_shader(RawShaders::basic_vertex,

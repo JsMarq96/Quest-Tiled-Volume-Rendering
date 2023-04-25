@@ -161,6 +161,8 @@ namespace Render {
                           const glm::mat4x4 *proj_mats,
                           const glm::mat4x4 *viewproj_mats);
 
+        void empty_render();
+
         // Inlines
         inline uint8_t add_drawcall_to_pass(const uint8_t pass_id,
                                             const sDrawCall &draw_call) {

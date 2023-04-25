@@ -198,6 +198,22 @@ double get_time() {
 
 }
 
+void Render::sInstance::empty_render() {
+    for(uint16_t eye = 0; eye < MAX_EYE_NUMBER; eye++) {
+        // Bind an FBO target of the OpenXR swapchain
+        uint32_t curr_swapchain_index = framebuffer.openxr_framebufffs[eye].adquire();
+        FBO_bind(framebuffer.fbos[eye][curr_swapchain_index]);
+        glClearColor(1.0,
+                     0.0,
+                     0.0,
+                     1.0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        framebuffer.openxr_framebufffs[eye].release();
+        FBO_unbind();
+    }
+}
+
 // https://gitlab.freedesktop.org/monado/demos/xrgears/-/blob/master/src/pipeline_equirect.cpp#L282
 void Render::sInstance::render_frame(const bool clean_frame,
                                      const glm::mat4x4 *view_mats,

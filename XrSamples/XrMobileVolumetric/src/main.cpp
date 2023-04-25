@@ -167,8 +167,6 @@ void android_main(struct android_app* app) {
 
     sFrameTransforms frame_transforms = {};
 
-    ApplicationLogic::config_render_pipeline(renderer);
-
     uint64_t render_time;
     uint32_t gl_time_queries[4];
 
@@ -239,6 +237,10 @@ void android_main(struct android_app* app) {
                                   frame_transforms.projection,
                                   frame_transforms.viewprojection);
         } else {
+            if (frame_counter == 1) {
+                ApplicationLogic::config_render_pipeline(renderer);
+            }
+            renderer.empty_render();
             frame_counter++;
         }
 
