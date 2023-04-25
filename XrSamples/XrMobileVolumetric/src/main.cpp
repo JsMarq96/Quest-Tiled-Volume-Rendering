@@ -177,6 +177,7 @@ void android_main(struct android_app* app) {
     glGenQueriesEXT_(2,
                     gl_time_queries);
 
+    int frame_counter = 0;
     // Game Loop
     while (app->destroyRequested == 0) {
         // Read all pending android events
@@ -232,10 +233,15 @@ void android_main(struct android_app* app) {
         glBeginQueryEXT_(GL_TIME_ELAPSED_EXT,
                          gl_time_queries[TIME_RENDER]);
 
-        renderer.render_frame(true,
-                              frame_transforms.view,
-                              frame_transforms.projection,
-                              frame_transforms.viewprojection);
+        if (frame_counter > 2) {
+            renderer.render_frame(true,
+                                  frame_transforms.view,
+                                  frame_transforms.projection,
+                                  frame_transforms.viewprojection);
+        } else {
+            frame_counter++;
+        }
+
 
         glEndQueryEXT_(GL_TIME_ELAPSED_EXT);
 
