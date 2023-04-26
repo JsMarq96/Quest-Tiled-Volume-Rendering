@@ -31,10 +31,38 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
     // Fill a new MeshBuffer from the generator data
     uint8_t bonsai_mesh = renderer.get_new_mesh_id();
 
-    // Generate the surface from the volume
-    mesh_generator.generate_from_volume(renderer.material_man.textures[volume_texture],
-                                        200,
-                                        &renderer.meshes[bonsai_mesh]);
+    // Generate mesh & profiling
+    {
+        uint32_t timing_query = 0;
+        uint64_t render_time = 0;
+        glGenQueriesEXT_(1,
+                        &timing_query);
+        glBeginQueryEXT_(GL_TIME_ELAPSED_EXT,
+                         timing_query);
+        // Generate the surface from the volume
+        mesh_generator.generate_from_volume(renderer.material_man.textures[volume_texture],
+                                            200,
+                                            &renderer.meshes[bonsai_mesh]);
+        glEndQueryEXT_(GL_TIME_ELAPSED_EXT);
+        int available = 0;
+        while (!available) {
+            glGetQueryObjectivEXT_(timing_query, GL_QUERY_RESULT_AVAILABLE, &available);
+        }
+
+        int disjoint_occurred = 0;
+        glGetIntegerv(GL_GPU_DISJOINT_EXT,
+                      &disjoint_occurred);
+        if (!disjoint_occurred) {
+            glGetQueryObjectui64vEXT_(timing_query, GL_QUERY_RESULT, &render_time);
+
+            __android_log_print(ANDROID_LOG_VERBOSE,
+                                "FRAME_STATS",
+                                "Compute mesh time: %f",
+                                ((double)render_time) / 1000000.0);
+        } else {
+            __android_log_print(ANDROID_LOG_VERBOSE, "FRAME_STATS", "Render time: invalid");
+        }
+    }
 
     // Create materials
     const uint8_t simple_material = renderer.material_man.add_material(color_shader,

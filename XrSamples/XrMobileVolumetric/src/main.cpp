@@ -167,15 +167,17 @@ void android_main(struct android_app* app) {
 
     sFrameTransforms frame_transforms = {};
 
+
+
+    ApplicationLogic::config_render_pipeline(renderer);
+
+#define TIME_RENDER 1
+#ifdef TIME_RENDER
     uint64_t render_time;
     uint32_t gl_time_queries[4];
-
-#define TIME_RENDER 0
-
     glGenQueriesEXT_(2,
                     gl_time_queries);
-
-    int frame_counter = 0;
+#endif
     // Game Loop
     while (app->destroyRequested == 0) {
         // Read all pending android events
@@ -202,20 +204,20 @@ void android_main(struct android_app* app) {
         //__android_log_print(ANDROID_LOG_VERBOSE, "Openxr test", "test frame %i %i", app_state.resumed, app_state.session_active);
         if (!app_state.session_active) {
             // Throttle loop since xrWaitFrame won't be called.
-            std::this_thread::sleep_for(std::chrono::milliseconds(450));
+            std::this_thread::sleep_for(std::chrono::milliseconds(400));
             continue;
         }
-
+#ifdef TIME_RENDER
         int disjoint_occurred = 0;
         // (Timing) Clear, if disjoint erro ocurred
         glGetIntegerv(GL_GPU_DISJOINT_EXT,
                       &disjoint_occurred);
-
+#endif
 
         double delta_time = 0.0;
-        __android_log_print(ANDROID_LOG_VERBOSE, "Openxr test", "starting frame");
-
+#ifdef TIME_RENDER
         auto update_method_start = std::chrono::steady_clock::now();
+#endif
         // Update and get position & events from the OpenXR runtime
         openxr_instance.update(&app_state,
                                &delta_time,
@@ -224,31 +226,25 @@ void android_main(struct android_app* app) {
         // Non-XR runtine Update
         ApplicationLogic::update_logic(delta_time,
                                        frame_transforms);
+#ifdef TIME_RENDER
         auto update_method_end = std::chrono::steady_clock::now();
         double update_timing = std::chrono::duration_cast<std::chrono::nanoseconds>(update_method_end - update_method_start).count();
 
         // Render (& timing)
         glBeginQueryEXT_(GL_TIME_ELAPSED_EXT,
                          gl_time_queries[TIME_RENDER]);
-
-        if (frame_counter > 2) {
-            renderer.render_frame(true,
+#endif
+        renderer.render_frame(true,
                                   frame_transforms.view,
                                   frame_transforms.projection,
                                   frame_transforms.viewprojection);
-        } else {
-            if (frame_counter == 1) {
-                ApplicationLogic::config_render_pipeline(renderer);
-            }
-            renderer.empty_render();
-            frame_counter++;
-        }
 
 
+#ifdef TIME_RENDER
         glEndQueryEXT_(GL_TIME_ELAPSED_EXT);
-
+#endif
         openxr_instance.submit_frame();
-
+#ifdef TIME_RENDER
         // Query processing ===========================================
         int available = 0;
         while (!available) {
@@ -269,8 +265,7 @@ void android_main(struct android_app* app) {
         } else {
             __android_log_print(ANDROID_LOG_VERBOSE, "FRAME_STATS", "Render time: invalid");
         }
-
-        __android_log_print(ANDROID_LOG_VERBOSE, "FRAME", "==================");
+#endif
     }
 
     // Cleanup TODO

@@ -32,7 +32,7 @@ LOCAL_SRC_FILES := $(FILE_LIST:$(LOCAL_PATH)/%=%)
 # include default libraries
 LOCAL_LDLIBS 			:= -llog -landroid -lGLESv3 -lEGL
 
-LOCAL_CFLAGS += -UNDEBUG -g
+#LOCAL_CFLAGS += -UNDEBUG -g
 
 LOCAL_STATIC_LIBRARIES := android_native_app_glue
 LOCAL_STATIC_LIBRARIES += libstb

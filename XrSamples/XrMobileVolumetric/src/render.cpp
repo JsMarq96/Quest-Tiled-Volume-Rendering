@@ -219,7 +219,6 @@ void Render::sInstance::render_frame(const bool clean_frame,
                                      const glm::mat4x4 *view_mats,
                                      const glm::mat4x4 *proj_mats,
                                      const glm::mat4x4 *viewproj_mats) {
-    __android_log_print(ANDROID_LOG_VERBOSE, "View", "-------------------------------");
     for(uint16_t eye = 0; eye < MAX_EYE_NUMBER; eye++) {
 
         for(uint16_t j = 0; j < render_pass_size; j++) {
@@ -251,9 +250,7 @@ void Render::sInstance::render_frame(const bool clean_frame,
                 if (!draw_call.enabled) {
                     continue;
                 }
-                __android_log_print(ANDROID_LOG_VERBOSE,
-                                    "FRAME_STATS",
-                                    "x: Holaa");
+
 
                 sMaterialInstance &material = material_man.materials[draw_call.material_id];
                 sShader &shader = material_man.shaders[material.shader_id];
@@ -279,12 +276,6 @@ void Render::sInstance::render_frame(const bool clean_frame,
                                                proj_mats[eye]);
 
                     glm::vec3 camera_local = glm::vec3( model_invert * glm::inverse(view_mats[eye]) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-                    __android_log_print(ANDROID_LOG_VERBOSE,
-                                        "View",
-                                        "x: %f %f %f",
-                                        camera_local.x,
-                                        camera_local.y,
-                                        camera_local.z);
                     shader.set_uniform_vector("u_camera_eye_local",
                                               camera_local);
                 }
