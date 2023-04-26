@@ -99,7 +99,6 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
         //models_axis_y[i] = glm::rotate(glm::translate(glm::mat4x4(1.0f), starting_pos), );
         starting_pos.y -= movement_delta;
     }
-    //__android_log_print(ANDROID_LOG_VERBOSE, "testio", "rendere %i", renderer.render_passes[render_pass].draw_stack_size);
 }
 
 void ApplicationLogic::update_logic(const double delta_time,

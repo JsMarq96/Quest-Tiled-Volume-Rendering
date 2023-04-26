@@ -458,8 +458,8 @@ void main() {
     if (depth < 0.15) { discard;}
     //pos = pos * 2.0;
     //pos = pos * 2.0;
-    o_frag_color = vec4(pos * 2.0, 1.0);
-    // o_frag_color = vec4(textureLod(u_volume_map, v_world_position * 0.5 + 0.5, 0.0).r);
+    o_frag_color = vec4(pos * 2.0, step(0.15,depth) * 1.0);
+    // o_frag_color = vec4(texture(u_volume_map, v_world_position * 0.5 + 0.5).r);
     //o_frag_color = vec4(pos, 1.0);
 })";
 
