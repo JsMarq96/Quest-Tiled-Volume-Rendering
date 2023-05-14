@@ -41,7 +41,7 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
                          timing_query);
         // Generate the surface from the volume
         mesh_generator.generate_from_volume(renderer.material_man.textures[volume_texture],
-                                            200,
+                                            250,
                                             &renderer.meshes[bonsai_mesh]);
         glEndQueryEXT_(GL_TIME_ELAPSED_EXT);
         int available = 0;
