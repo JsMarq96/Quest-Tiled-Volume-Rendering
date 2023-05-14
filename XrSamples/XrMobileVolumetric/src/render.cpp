@@ -233,12 +233,15 @@ void Render::sInstance::render_frame(const bool clean_frame,
                 model = draw_call.transform.get_model();
                 model_invert = glm::inverse(model);
 
-                change_graphic_state(draw_call.call_state);
+                if (i <= 1) {
+                    change_graphic_state(draw_call.call_state);
+                    material_man.enable(draw_call.material_id);
 
-                material_man.enable(draw_call.material_id);
+                    glBindVertexArray(mesh.VAO);
+                    glEnable(GL_BLEND);
+                }
 
-                glBindVertexArray(mesh.VAO);
-                glEnable(GL_BLEND);
+
 
                 if (draw_call.use_transform) {
                     shader.set_uniform_matrix4("u_model_mat",
@@ -251,18 +254,13 @@ void Render::sInstance::render_frame(const bool clean_frame,
                                                proj_mats[eye]);
 
                     glm::vec3 camera_local = glm::vec3( model_invert * glm::inverse(view_mats[eye]) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-                    __android_log_print(ANDROID_LOG_VERBOSE,
-                                        "View",
-                                        "x: %f %f %f",
-                                        camera_local.x,
-                                        camera_local.y,
-                                        camera_local.z);
+
                     shader.set_uniform_vector("u_camera_eye_local",
                                               camera_local);
                 }
 
-                shader.set_uniform("u_time",
-                                   (float) get_time());
+                //shader.set_uniform("u_time",
+                //                   (float) get_time());
 
 
                 if (mesh.is_indexed) {
@@ -277,7 +275,7 @@ void Render::sInstance::render_frame(const bool clean_frame,
                                  mesh.primitive_count);
                 }
 
-                material_man.disable();
+                //material_man.disable();
             }
 
             if (pass.target != FBO_TARGET) {

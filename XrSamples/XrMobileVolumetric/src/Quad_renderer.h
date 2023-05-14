@@ -115,11 +115,6 @@ struct sQuadRenderer {
         facing_z = glm::abs(facing_z);
         facing_y = glm::abs(facing_y);
 
-        std::cout << "X facing " << facing_x << std::endl;
-        std::cout << "y facing " << facing_y << std::endl;
-        std::cout << "z facing " << facing_z << std::endl;
-        std::cout << "==============================" << std::endl;
-
         const glm::mat4x4 *models = NULL;
         if (facing_z > facing_y) {
             if (facing_y > facing_x) {

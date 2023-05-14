@@ -961,8 +961,8 @@ struct sOpenXR_Instance {
                                     glm::vec4{-0.0714157149, 0.194407403, -0.978317737, 0.0},
                                     glm::vec4{-0.0139257628, 0.980532169, 0.195864022, 0.0},
                                     glm::vec4{-0.0346568264, 1.22155976, 0.0694313869, 1.0});*/
+            transforms->view[eye] = glm::inverse(TestPerspectives::near_view);
             //transforms->view[eye] = glm::inverse(view_eye);
-            transforms->view[eye] = glm::inverse(view_eye);
 
             transforms->viewprojection[eye] = (transforms->projection[eye] * transforms->view[eye]);
             // https://github.com/maluoi/OpenXRSamples/blob/master/SingleFileExample/main.cpp
