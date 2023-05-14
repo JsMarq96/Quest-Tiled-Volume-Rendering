@@ -275,15 +275,15 @@ void Render::sInstance::render_frame(const bool clean_frame,
                     shader.set_uniform_matrix4("u_proj_mat",
                                                proj_mats[eye]);
 
-                    glm::vec3 camera_local = glm::vec3( model_invert * glm::inverse(view_mats[eye]) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+                    //glm::vec3 camera_local = glm::vec3( model_invert * glm::inverse(view_mats[eye]) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
                     shader.set_uniform_vector("u_camera_eye_local",
-                                              camera_local);
+                                              (view_mats[eye]) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
                 }
 
                 shader.set_uniform("u_time",
                                    (float) get_time());
 
-
+                glDisable(GL_CULL_FACE);
                 if (mesh.is_indexed) {
                     glDrawElements(mesh.primitive,
                                    mesh.primitive_count,

@@ -111,10 +111,12 @@ out vec4 o_frag_color;
 uniform vec3 u_camera_eye_local;
 uniform highp sampler3D u_volume_map;
 const int MAX_ITERATIONS = 200;
-const float STEP_SIZE = 0.005;
+const float STEP_SIZE = 0.05;
 vec4 render_volume() {
-   vec3 ray_dir = normalize(v_local_position - u_camera_eye_local);
-   vec3 it_pos = v_local_position + ray_dir * 0.0001; // Start a bit further than the border
+   vec3 pos =  (v_local_position);//-vec3(0.0, 0.25, 0.0);
+   //pos = pos + vec3(0.25);
+   vec3 ray_dir = normalize(pos - u_camera_eye_local);
+   vec3 it_pos = ray_dir * 0.0001; // Start a bit further than the border
    vec4 final_color = vec4(0.0);
 
     int i = 0;
@@ -129,8 +131,10 @@ vec4 render_volume() {
         if (it_pos.x > 1.0 || it_pos.y > 1.0 || it_pos.z > 1.0) {
             break;
         }
-        float depth = texture(u_volume_map, it_pos).r;
+        float depth = texture(u_volume_map, pos + it_pos).r;
         if (0.15 <= depth) {
+break;
+            //return vec4(vec4(float(i) / MAX_ITERATIONS);
             return vec4(it_pos, 1.0);
         }
         // Increase luminosity, only on the colors
@@ -139,13 +143,13 @@ vec4 render_volume() {
         final_color = final_color + (STEP_SIZE * (1.0 - final_color.a) * sample_color);
         it_pos = it_pos + (STEP_SIZE * ray_dir);
     }
-
+    return vec4(vec4(float(i) / float(MAX_ITERATIONS)));
     return vec4(vec3(0.0), 1.0);
     return vec4(it_pos / 2.0 + 0.5, 1.0);
     return vec4(final_color.xyz, 1.0);
 }
 void main() {
-   //o_frag_color = v_local_position;
+   //o_frag_color = vec4(v_local_position, 1.0); return;
    o_frag_color = render_volume();
    //o_frag_color = vec4(normalize(u_camera_eye_local - v_local_position), 1.0);
    //o_frag_color = texture(u_frame_color_attachment, v_screen_position);
@@ -393,7 +397,7 @@ in vec2 v_screen_position;
 out vec4 o_frag_color;
 
 void main() {
-    o_frag_color = vec4((v_world_position-vec3(-0.25, 0.50, 0.25)) * 2.0, 1.0);
+    o_frag_color = vec4(v_world_position * 2.0, 1.0);
 }
 )";
 
@@ -471,7 +475,7 @@ void main() {
     for(int i = 0; i < 8; i++) {
         vec3 delta_pos = (world_position + (DELTAS[i])/works_size);
         float density = texture(u_volume_map, delta_pos).r;
-        if (density > 0.15) {
+        if (density > 0.09) {
             point += delta_pos;
             axis_seed |= 1 << i;
             axis_count++;
@@ -481,6 +485,7 @@ void main() {
     vec3 value = vec3(0.0);
     if (axis_count > 0 && axis_count < 8) {
         value = ((point / vec3(axis_count)));
+        //value = value + normalize(vec3(0.0, 0.5, 0.0)-value) * 0.05;
     } else {
         axis_seed = 0;
     }

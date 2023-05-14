@@ -12,7 +12,7 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
 
     // Create shaders
     const uint8_t color_shader = renderer.material_man.add_raw_shader(RawShaders::basic_vertex,
-                                                                       RawShaders::world_fragment_shader);
+                                                                       RawShaders::volumetric_fragment_outside);
     //const uint8_t plaincolor_shader = renderer.material_man.add_raw_shader(RawShaders::basic_vertex,
     //                                                                        RawShaders::basic_fragment);
 
@@ -41,7 +41,7 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
                          timing_query);
         // Generate the surface from the volume
         mesh_generator.generate_from_volume(renderer.material_man.textures[volume_texture],
-                                            250,
+                                            100,
                                             &renderer.meshes[bonsai_mesh]);
         glEndQueryEXT_(GL_TIME_ELAPSED_EXT);
         int available = 0;
@@ -67,8 +67,9 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
     // Create materials
     const uint8_t simple_material = renderer.material_man.add_material(color_shader,
                                                                            {
+                                                                                .volume_tex = volume_texture,
                                                                                 .enabled_color = false,
-                                                                                .enabled_volume = false
+                                                                                .enabled_volume = true
                                                                            });
 
 
@@ -91,7 +92,7 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
                                     .use_transform = true,
                                     .transform = {
                                           .position = starting_pos,
-                                          .scale = {0.50f, 0.50f, 0.50f}
+                                          .scale = {0.6f, 0.60f, 0.60f}
                                     },
                                     .call_state = {
                                           .depth_test_enabled = true,
