@@ -6,10 +6,7 @@ namespace RawShaders {
     /// Basic sahders
 const char basic_vertex[] = R"(#version 300 es
 in  vec3 a_pos;
-in  vec2 a_uv;
-in  vec3 a_normal;
 
-out vec2 v_uv;
 out vec3 v_world_position;
 out vec3 v_local_position;
 out vec2 v_screen_position;
@@ -23,7 +20,6 @@ void main() {
     vec4 world_pos = u_model_mat * vec4(a_pos, 1.0);
     v_world_position = world_pos.xyz;
     v_local_position = a_pos;
-    v_uv = a_uv;
     gl_Position = u_vp_mat * world_pos;
     v_screen_position = ((gl_Position.xy / gl_Position.w) + 1.0) / 2.0;
 }
@@ -103,44 +99,35 @@ void main() {
 
 const char volumetric_fragment_outside[] = R"(#version 300 es
 precision highp float;
-in vec2 v_uv;
 in vec3 v_world_position;
 in vec3 v_local_position;
 in vec2 v_screen_position;
 out vec4 o_frag_color;
 uniform vec3 u_camera_eye_local;
 uniform highp sampler3D u_volume_map;
-const int MAX_ITERATIONS = 200;
-const float STEP_SIZE = 0.05;
+const int MAX_ITERATIONS = 100;
+const float STEP_SIZE = 0.1;
 vec4 render_volume() {
    vec3 pos =  (v_local_position);//-vec3(0.0, 0.25, 0.0);
    //pos = pos + vec3(0.25);
    vec3 ray_dir = normalize(pos - u_camera_eye_local);
-   vec3 it_pos = ray_dir * 0.0001; // Start a bit further than the border
+   vec3 it_pos = pos - ray_dir * 0.001; // Start a bit further than the border
    vec4 final_color = vec4(0.0);
 
     int i = 0;
     for(; i < MAX_ITERATIONS; i++) {
-        if (final_color.a >= 0.95) {
-            break;
-        }
         // Avoid going outside the texture
-        if (it_pos.x < 0.0 || it_pos.y < 0.0 || it_pos.z < 0.0) {
-            break;
-        }
-        if (it_pos.x > 1.0 || it_pos.y > 1.0 || it_pos.z > 1.0) {
-            break;
-        }
+
         float depth = texture(u_volume_map, pos + it_pos).r;
         if (0.15 <= depth) {
-break;
+            break;
             //return vec4(vec4(float(i) / MAX_ITERATIONS);
             return vec4(it_pos, 1.0);
         }
         // Increase luminosity, only on the colors
         vec4 sample_color = vec4(04.6 * depth);
         sample_color.a = depth;
-        final_color = final_color + (STEP_SIZE * (1.0 - final_color.a) * sample_color);
+        //final_color = final_color + (STEP_SIZE * (1.0 - final_color.a) * sample_color);
         it_pos = it_pos + (STEP_SIZE * ray_dir);
     }
     return vec4(vec4(float(i) / float(MAX_ITERATIONS)));
@@ -149,7 +136,7 @@ break;
     return vec4(final_color.xyz, 1.0);
 }
 void main() {
-   //o_frag_color = vec4(v_local_position, 1.0); return;
+   o_frag_color = vec4(v_local_position, 1.0); return;
    o_frag_color = render_volume();
    //o_frag_color = vec4(normalize(u_camera_eye_local - v_local_position), 1.0);
    //o_frag_color = texture(u_frame_color_attachment, v_screen_position);
@@ -171,7 +158,7 @@ uniform highp sampler3D u_volume_map;
 uniform highp sampler2D u_albedo_map; // Noise texture
 uniform highp float u_density_threshold;
 
-const int MAX_ITERATIONS = 350;
+const int MAX_ITERATIONS = 150;
 const float STEP_SIZE = 0.007; // 0.004 ideal for quality
 const int NOISE_TEX_WIDTH = 100;
 
@@ -190,17 +177,12 @@ vec3 gradient(in vec3 pos) {
 
 vec4 render_volume() {
     vec3 ray_dir = normalize(v_local_position - u_camera_eye_local);
-    vec3 it_pos = v_local_position;
+    vec3 it_pos = v_local_position - ray_dir * 0.001;
     // Add jitter
-    vec3 jitter_addition = ray_dir * (texture(u_albedo_map, gl_FragCoord.xy / vec2(NOISE_TEX_WIDTH)).rgb * STEP_SIZE);
-    it_pos = it_pos + jitter_addition;
-    vec4 final_color = vec4(0.0);
+    vec3 jitter_addition = vec3(0.0);//ray_dir * (texture(u_albedo_map, gl_FragCoord.xy / vec2(NOISE_TEX_WIDTH)).rgb * STEP_SIZE);
 
     int i = 0;
     for(; i < MAX_ITERATIONS; i++) {
-        if (final_color.a >= 0.95) {
-            break;
-        }
         // Avoid going outside the texture
         if (it_pos.x < 0.0 || it_pos.y < 0.0 || it_pos.z < 0.0) {
             break;
@@ -209,8 +191,9 @@ vec4 render_volume() {
             break;
         }
         float depth = texture(u_volume_map, it_pos).r;
-        if (u_density_threshold <= depth) {
-            return vec4(gradient(it_pos - jitter_addition), 1.0);
+        if (0.3 <= depth) {
+            return vec4(vec3(it_pos), 1.0);
+            return vec4(gradient(it_pos), 1.0);
       }
 
       it_pos = it_pos + (STEP_SIZE * ray_dir);
@@ -475,7 +458,7 @@ void main() {
     for(int i = 0; i < 8; i++) {
         vec3 delta_pos = (world_position + (DELTAS[i])/works_size);
         float density = texture(u_volume_map, delta_pos).r;
-        if (density > 0.09) {
+        if (density > 0.16) {
             point += delta_pos;
             axis_seed |= 1 << i;
             axis_count++;
