@@ -283,7 +283,7 @@ void Render::sInstance::render_frame(const bool clean_frame,
                 shader.set_uniform("u_time",
                                    (float) get_time());
 
-
+                glDisable(GL_CULL_FACE);
                 if (mesh.is_indexed) {
                     glDrawElements(mesh.primitive,
                                    mesh.primitive_count,
