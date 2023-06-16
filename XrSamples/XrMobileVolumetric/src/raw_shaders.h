@@ -130,13 +130,13 @@ vec4 render_volume() {
         //final_color = final_color + (STEP_SIZE * (1.0 - final_color.a) * sample_color);
         it_pos = it_pos + (STEP_SIZE * ray_dir);
     }
-    return vec4(vec4(float(i) / float(MAX_ITERATIONS)));
+    //return vec4(vec4(float(i) / float(MAX_ITERATIONS)));
     return vec4(vec3(0.0), 1.0);
     return vec4(it_pos / 2.0 + 0.5, 1.0);
     return vec4(final_color.xyz, 1.0);
 }
 void main() {
-   o_frag_color = vec4(v_local_position, 1.0); return;
+   //o_frag_color = vec4(v_local_position, 1.0); return;
    o_frag_color = render_volume();
    //o_frag_color = vec4(normalize(u_camera_eye_local - v_local_position), 1.0);
    //o_frag_color = texture(u_frame_color_attachment, v_screen_position);
@@ -175,28 +175,31 @@ vec3 gradient(in vec3 pos) {
     return normalize(vec3(x, y, z) / vec3(DELTA * 2.0));
 }
 
+bool is_inside_v2(in vec3 box_min, in vec3 box_max, in vec3 position) {
+    return all(greaterThan(position, box_min)) && all(lessThan(position, box_max));
+}
+
 vec4 render_volume() {
     vec3 ray_dir = normalize(v_local_position - u_camera_eye_local);
-    vec3 it_pos = v_local_position - ray_dir * 0.001;
+    vec3 pos = v_local_position - ray_dir * 0.001;
     // Add jitter
     vec3 jitter_addition = vec3(0.0);//ray_dir * (texture(u_albedo_map, gl_FragCoord.xy / vec2(NOISE_TEX_WIDTH)).rgb * STEP_SIZE);
-
+    vec3 box_min = vec3(0.0), box_max = vec3(1.0);
     int i = 0;
-    for(; i < MAX_ITERATIONS; i++) {
-        // Avoid going outside the texture
-        if (it_pos.x < 0.0 || it_pos.y < 0.0 || it_pos.z < 0.0) {
-            break;
-        }
-        if (it_pos.x > 1.0 || it_pos.y > 1.0 || it_pos.z > 1.0) {
-            break;
-        }
-        float depth = texture(u_volume_map, it_pos).r;
-        if (0.3 <= depth) {
-            return vec4(vec3(it_pos), 1.0);
-            return vec4(gradient(it_pos), 1.0);
-      }
+    float dist = 0.0f;
+   for(; i < 150; i++) {
+        vec3 sample_pos = pos + (dist * ray_dir);
 
-      it_pos = it_pos + (STEP_SIZE * ray_dir);
+        // Early out
+        if (!is_inside_v2(box_min, box_max, sample_pos)) {
+            return vec4(0.0);
+        }
+
+        float depth = texture(u_volume_map, sample_pos).r;
+        if (depth >= 0.15) {
+            return vec4(sample_pos, 1.0);
+        }
+        dist += STEP_SIZE;
    }
    return vec4(vec3(0.0), 1.0);
 }
@@ -333,6 +336,7 @@ vec3 mrm() {
     vec3 prev_voxel_max = vec3(1.0);
 
     vec3 box_min = vec3(0.0), box_max = vec3(1.0);
+
 
     int i = 0;
     for(; i < MAX_ITERATIONS; i++) {
@@ -603,6 +607,152 @@ void main() {
     test_triangle_y(index, post, current_point);
     test_triangle_z(index, post, current_point);
 })";
+
+const char surface_to_boxes[] = R"(#version 310 es
+precision highp float;
+
+layout(std430, binding = 1) buffer vertices_surfaces {
+    vec4 vertices[];
 };
 
+layout(std430, binding = 2) buffer raw_mesh {
+    vec4 mesh_vertices[];
+};
+
+layout(std430, binding = 4) buffer mesh_indices {
+    uvec4 indices[];
+};
+
+layout(std430, binding = 3) buffer vertex_count {
+    uint mesh_vertices_count;
+};
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+const vec3 box_indices[36] = vec3[36](
+vec3( -1.0 ,  1.0 ,  -1.0 ),
+vec3( 1.0 ,  1.0 ,  1.0 ),
+vec3( 1.0 ,  1.0 ,  -1.0 ),
+vec3( 1.0 ,  1.0 ,  1.0 ),
+vec3( -1.0 ,  -1.0 ,  1.0 ),
+vec3( 1.0 ,  -1.0 ,  1.0 ),
+vec3( -1.0 ,  1.0 ,  1.0 ),
+vec3( -1.0 ,  -1.0 ,  -1.0 ),
+vec3( -1.0 ,  -1.0 ,  1.0 ),
+vec3( 1.0 ,  -1.0 ,  -1.0 ),
+vec3( -1.0 ,  -1.0 ,  1.0 ),
+vec3( -1.0 ,  -1.0 ,  -1.0 ),
+vec3( 1.0 ,  1.0 ,  -1.0 ),
+vec3( 1.0 ,  -1.0 ,  1.0 ),
+vec3( 1.0 ,  -1.0 ,  -1.0 ),
+vec3( -1.0 ,  1.0 ,  -1.0 ),
+vec3( 1.0 ,  -1.0 ,  -1.0 ),
+vec3( -1.0 ,  -1.0 ,  -1.0 ),
+vec3( -1.0 ,  1.0 ,  -1.0 ),
+vec3( -1.0 ,  1.0 ,  1.0 ),
+vec3( 1.0 ,  1.0 ,  1.0 ),
+vec3( 1.0 ,  1.0 ,  1.0 ),
+vec3( -1.0 ,  1.0 ,  1.0 ),
+vec3( -1.0 ,  -1.0 ,  1.0 ),
+vec3( -1.0 ,  1.0 ,  1.0 ),
+vec3( -1.0 ,  1.0 ,  -1.0 ),
+vec3( -1.0 ,  -1.0 ,  -1.0 ),
+vec3( 1.0 ,  -1.0 ,  -1.0 ),
+vec3( 1.0 ,  -1.0 ,  1.0 ),
+vec3( -1.0 ,  -1.0 ,  1.0 ),
+vec3( 1.0 ,  1.0 ,  -1.0 ),
+vec3( 1.0 ,  1.0 ,  1.0 ),
+vec3( 1.0 ,  -1.0 ,  1.0 ),
+vec3( -1.0 ,  1.0 ,  -1.0 ),
+vec3( 1.0 ,  1.0 ,  -1.0 ),
+vec3( 1.0 ,  -1.0 ,  -1.0 )
+);
+
+int get_index_of_position(in ivec3 position) {
+    ivec3 num_work_groups = ivec3(gl_NumWorkGroups.xyz);
+
+    int num_work_groups_z_p2 = (num_work_groups.z * num_work_groups.z);
+    return int(position.x + position.y * num_work_groups.y + position.z * num_work_groups_z_p2);
+}
+
+void main() {
+    ivec3 post = ivec3(gl_GlobalInvocationID);
+    int index = get_index_of_position(post);
+
+    vec4 current_point = vertices[index];
+
+    //atomicAdd(mesh_vertices_count, 1);
+
+    if (current_point.w == 0.0) { // Early out
+        return;
+    }
+
+    float box_size = 2.0 / 25.0;
+    uint start_vert = atomicAdd(mesh_vertices_count, 36u);
+
+    for(uint i = 0u; i < 36u; i++) {
+        mesh_vertices[start_vert + i] = vec4(current_point.xyz + (box_indices[i] / 2.0) * box_size, 0.0);
+    }
+}
+)";
+
+
+const char surface_find_ess[] = R"(#version 310 es
+precision highp float;
+
+layout(std430, binding = 1) buffer vertices_surfaces {
+    vec4 vertices[];
+};
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+uniform highp sampler3D u_volume_map;
+
+const vec3 DELTAS[8] = vec3[8](
+    vec3(0,0,0),
+    vec3(1,0,0), //
+    vec3(0,1,0),
+    vec3(1,1,0),
+    vec3(0,0,1),
+    vec3(1,0,1),
+    vec3(0,1,1),
+    vec3(1,1,1)
+);
+
+int get_index_of_position(in ivec3 position) {
+    ivec3 num_work_groups = ivec3(gl_NumWorkGroups.xyz);
+
+    int num_work_groups_z_p2 = (num_work_groups.z * num_work_groups.z);
+    return int(position.x + position.y * num_work_groups.y + position.z * num_work_groups_z_p2);
+}
+
+void main() {
+	ivec3 curr_index = ivec3(gl_GlobalInvocationID.xyz);
+    vec3 works_size =  vec3(gl_NumWorkGroups.xyz);
+    vec3 world_position = vec3(curr_index) / works_size;
+
+    int index = get_index_of_position(curr_index);
+
+    vec3 point = vec3(0.0);
+    int axis_seed = 0;
+    int axis_count = 0;
+    vec3 delta_pos = (world_position );
+        float density = texelFetch(u_volume_map, ivec3(world_position * 16.0), 4).r;
+
+        if (density > 0.05) {
+           axis_count = 5;
+        }
+
+    // TODO: better point fiding!
+    vec3 value = delta_pos;// * 15.0;
+    if (axis_count > 0 && axis_count < 8) {
+        axis_seed = 5;
+        //value = ((point / axis_count));
+    } else {
+        axis_seed = 0;
+    }
+
+    vertices[index] = vec4(value, float(axis_seed));
+})";
+};
 #endif // RAW_SHADERS_H_

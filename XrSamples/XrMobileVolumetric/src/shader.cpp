@@ -195,6 +195,9 @@ void sShader::load_compute_shader(const char* raw_compute) {
         __android_log_print(ANDROID_LOG_ERROR,
                             "Compute Shader compilation error",
                             "%s", compile_log);
+        __android_log_print(ANDROID_LOG_ERROR,
+                            "Compute Shader",
+                            "%s", raw_compute);
         assert(">>>>>Error comiling vertex shader" && false);
     }
 
