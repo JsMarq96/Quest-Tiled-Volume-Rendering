@@ -206,6 +206,7 @@ vec4 render_volume() {
         }
         float depth = texture(u_volume_map, it_pos).r;
         if (u_density_threshold <= depth) {
+            return vec4(it_pos - jitter_addition,1.0);
             return vec4(gradient(it_pos - jitter_addition), 1.0);
       }
 
@@ -238,7 +239,7 @@ uniform highp sampler2D u_albedo_map; // Noise texture
 
 const int MAX_ITERATIONS = 200;
 const int NOISE_TEX_WIDTH = 100;
-const float STEP_SIZE = 0.80; // 0.004 ideal for quality
+const float STEP_SIZE = 0.250; // 0.004 ideal for quality
 const float DELTA = 0.001;
 const float SMALLEST_VOXEL = 0.0078125; // 2.0 / 256
 
@@ -360,7 +361,7 @@ vec3 mrm() {
         float depth = textureLod(u_volume_map, sample_pos, curr_mipmap_level).r;
         if (depth > 0.15) { // There is a block
             if (curr_mipmap_level == 0.0) {
-                return sample_pos;
+                return sample_pos - jitter_addition;
                 //break;
                 //return gradient(sample_pos) * 0.5 + 0.5;
             }
