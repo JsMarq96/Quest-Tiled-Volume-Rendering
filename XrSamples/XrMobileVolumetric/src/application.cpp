@@ -75,7 +75,7 @@ void ApplicationLogic::config_render_pipeline(Render::sInstance &renderer) {
     renderer.render_passes[render_pass].rgba_clear_values[3] = 1.0f;
 
     float movement_delta = 0.50f / (256.0f /2.0f);// size of a voxel in world space
-    glm::vec3 starting_pos = {0.0f, 0.5f + (movement_delta * 256/2), 0.0f};
+    glm::vec3 starting_pos = {0.0f, 0.05f + (movement_delta * 256/2), 0.0f};
     for(uint32_t i = 0; i < 256/2; i++) {
         renderer.add_drawcall_to_pass(render_pass,
                                       {.mesh_id = quad_mesh,

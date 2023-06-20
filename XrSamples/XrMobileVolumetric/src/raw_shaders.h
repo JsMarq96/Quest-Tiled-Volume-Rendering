@@ -453,7 +453,7 @@ uniform vec3 u_camera_position;
 uniform highp sampler3D u_volume_map;
 
 void main() {
-    vec3 pos = v_world_position-vec3(-0.25, 0.50, 0.25);
+    vec3 pos = v_world_position-vec3(-0.25, 0.00, 0.25);
     float depth = texture(u_volume_map, pos * 2.0).r;
     if (depth < 0.15) { discard;}
     //pos = pos * 2.0;
